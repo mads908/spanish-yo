@@ -269,6 +269,8 @@
     <span class="chip" id="dueCount" style="border-style:dashed">📚 0 to review</span>
   </div>
 
+  <div class="tip" id="phase" hidden>🔍 <b>Check-up:</b> words from last time come first. Get them right to unlock today’s new words. Any you miss move into today’s set.</div>
+
   <div class="panel done" id="done" hidden>
     <div style="font-size:54px">🌞</div>
     <h2>¡Todo hecho!</h2>
@@ -966,7 +968,8 @@ const FRASES = [
 const PRAISE = ['¡Olé!', '¡Muy bien!', '¡Perfecto!', '¡Genial!', '¡Fantástico!', '¡Eso es!', '¡Qué crack!'];
 // Spaced repetition: each correct answer moves a word up a box, and it waits longer before coming back.
 const MIN = 60e3, DAY = 864e5;
-const INTERVALS = [0, 10 * MIN, 1 * DAY, 3 * DAY, 7 * DAY, 16 * DAY, 35 * DAY, 90 * DAY];
+const INTERVALS = [0, 1 * DAY, 3 * DAY, 7 * DAY, 16 * DAY, 35 * DAY, 90 * DAY];
+const REPS_TO_LEARN = 3; // correct answers in a session before a new word leaves for the day
 const NEW_PER_DAY = 15; // new words introduced per day, in list order
 const SIESTA_AFTER = 7.5 * 60; // seconds of active study
 const SNOOZE = 5 * 60;
@@ -978,6 +981,7 @@ function migrate(d) {
   d.words = d.words.filter(w => !/^s\d+$/.test(w.id));
   d.words.forEach(w => {
     if (w.box == null) { w.box = Math.min(w.score || 0, 2); w.due = 0; delete w.score; }
+    w.box = Math.min(w.box, INTERVALS.length - 1);
   });
   return d;
 }
@@ -1027,16 +1031,20 @@ const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '
 function inCat() {
   return state.cat === 'all' ? state.words : state.words.filter(x => (x.cat || 'Mis palabras') === state.cat);
 }
-// New words never seen have due === 0
+// New words never seen have due === 0. Words missed in the check-up ("carried")
+// take the place of new words in today's set.
 function newLeft() {
-  if (state.newDay !== dayStr()) { state.newDay = dayStr(); state.newCount = 0; state.newExtra = 0; }
-  return Math.max(0, NEW_PER_DAY + state.newExtra - state.newCount);
+  if (state.newDay !== dayStr()) { state.newDay = dayStr(); state.newCount = 0; state.newExtra = 0; state.carried = 0; }
+  return Math.max(0, NEW_PER_DAY + state.newExtra - state.newCount - (state.carried || 0));
 }
-// Words due for review plus today's share of new words
+// Learned words that are due again: these get checked first
+const checkWords = () => inCat().filter(x => x.box >= 1 && x.due <= Date.now());
+// The check-up comes first. Once it's done: words you're still learning plus today's new words.
 function dueWords() {
-  const words = inCat(), now = Date.now();
-  const review = words.filter(x => x.due > 0 && x.due <= now);
-  return review.concat(words.filter(x => x.due === 0).slice(0, newLeft()));
+  const check = checkWords();
+  if (check.length) return check;
+  const words = inCat();
+  return words.filter(x => x.box === 0 && x.due > 0).concat(words.filter(x => x.due === 0).slice(0, newLeft()));
 }
 // A word you've missed 2+ times is "tricky": it gets shorter breaks until you've really learned it
 const isTricky = w => (w.misses || 0) >= 2;
@@ -1056,20 +1064,32 @@ function weightedPick(list, avoid) {
 function bump(w, ok) {
   const now = Date.now();
   if (w.due === 0) { newLeft(); state.newCount++; }
+  const wasCheck = w.box >= 1 && w.due <= now;
   if (ok) {
     // Practising a word early doesn't push it further out
     if (w.due <= now) {
-      w.box = Math.min(w.box + 1, INTERVALS.length - 1);
-      w.due = now + INTERVALS[w.box] * (isTricky(w) ? 0.5 : 1);
-      // Remembering it after a week or more slowly clears the tricky mark
-      if (w.box >= 4 && w.misses) w.misses--;
+      if (w.box === 0 && (w.reps || 0) < REPS_TO_LEARN - 1) {
+        // Still learning: it stays in today's set until you've got it right a few times
+        w.reps = (w.reps || 0) + 1; w.due = now;
+      } else {
+        w.reps = 0;
+        w.box = Math.min(w.box + 1, INTERVALS.length - 1);
+        w.due = now + INTERVALS[w.box] * (isTricky(w) ? 0.5 : 1);
+        // Remembering it after a week or more slowly clears the tricky mark
+        if (w.box >= 3 && w.misses) w.misses--;
+      }
     }
   } else {
+    // Missed in the check-up: it moves into today's set instead of a new word
+    if (wasCheck) { newLeft(); state.carried = (state.carried || 0) + 1; }
     // Forgot it: back to unlearned, it has to climb the steps again
-    w.box = 0; w.due = now;
+    w.box = 0; w.reps = 0; w.due = now;
     w.misses = (w.misses || 0) + 1;
   }
   save(); updateStats();
+  if (wasCheck && !practiseAll && !trickyOnly && !checkWords().length) {
+    toast('✅ Check-up done! On to today’s words'); confetti();
+  }
 }
 function fmtWait(ms) {
   if (ms <= 0) return 'now';
@@ -1080,6 +1100,7 @@ function fmtWait(ms) {
 function checkDone() {
   const empty = ['flash', 'match', 'write'].includes(view) && pool().length === 0;
   $('done').hidden = !empty;
+  $('phase').hidden = empty || !['flash', 'match', 'write'].includes(view) || practiseAll || trickyOnly || !checkWords().length;
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', !empty && v.id === 'view-' + view));
   if (empty) {
     const words = inCat();
@@ -1135,8 +1156,9 @@ function updateStats() {
   const y = new Date(); y.setDate(y.getDate() - 1);
   const alive = state.lastDay === dayStr() || state.lastDay === dayStr(y);
   $('streak').textContent = '🔥 ' + (alive ? state.streak : 0);
-  $('mastered').textContent = '⭐ ' + state.words.filter(w => w.box >= 4).length + '/' + state.words.length;
-  $('dueCount').textContent = `📚 ${dueWords().length} to review`;
+  $('mastered').textContent = '⭐ ' + state.words.filter(w => w.box >= 3).length + '/' + state.words.length;
+  const check = checkWords().length;
+  $('dueCount').textContent = check ? `🔍 ${check} to check` : `📚 ${dueWords().length} to learn today`;
 }
 function renderCats() {
   const cats = [...new Set(state.words.map(w => w.cat || 'Mis palabras'))].sort();
@@ -1355,11 +1377,11 @@ function renderLessons() {
   const now = Date.now();
   const cats = [...new Set(state.words.map(w => w.cat || 'Mis palabras'))].sort();
   const card = (cat, words, info) => {
-    const learned = words.filter(w => w.box >= 4).length;
-    const review = words.filter(w => w.due > 0 && w.due <= now).length;
+    const learned = words.filter(w => w.box >= 3).length;
+    const review = words.filter(w => w.box >= 1 && w.due <= now).length;
     const fresh = words.filter(w => w.due === 0).length;
     const tricky = words.filter(isTricky).length;
-    const meta = [`⭐ ${learned}/${words.length} learned`, review && `📚 ${review} to review`, fresh && `🆕 ${fresh} new`, tricky && `😬 ${tricky} tricky`].filter(Boolean).join(' · ');
+    const meta = [`⭐ ${learned}/${words.length} learned`, review && `🔍 ${review} to check`, fresh && `🆕 ${fresh} new`, tricky && `😬 ${tricky} tricky`].filter(Boolean).join(' · ');
     return `<button class="lesson ${state.cat === cat ? 'on' : ''}" data-cat="${esc(cat)}">
       <h3><small>${info.icon} ${esc(info.label || cat)}</small>${esc(info.title)}</h3>
       <p>${esc(info.note)}</p>
@@ -1393,7 +1415,7 @@ function renderList() {
   const words = state.words.slice().reverse(), now = Date.now();
   $('list').innerHTML = words.map(w => `
     <div class="item">
-      <span class="dot ${w.box >= 4 ? 'm3' : w.box === 3 ? 'm2' : w.box >= 1 ? 'm1' : ''}"></span>
+      <span class="dot ${w.box >= 3 ? 'm3' : w.box === 2 ? 'm2' : w.box >= 1 ? 'm1' : ''}"></span>
       <span class="es">${esc(w.es)}</span><span class="en">${esc(w.en)}</span>
       ${w.misses ? `<span class="muted" title="Times missed">${isTricky(w) ? '😬' : ''}✗${w.misses}</span>` : ''}
       <span class="cat">${esc(w.cat || '')} · ${w.due === 0 ? 'new' : w.due <= now ? 'review now' : fmtWait(w.due - now)}</span>
