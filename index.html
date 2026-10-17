@@ -197,6 +197,15 @@
   #sInput { font-size: 18px; }
   .feedback u { color: var(--oro); text-decoration-thickness: 2px; text-underline-offset: 3px; }
 
+  /* Login */
+  .login {
+    position: fixed; inset: 0; z-index: 60; background: var(--bg);
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  .login[hidden] { display: none; }
+  .login form { width: min(100%, 380px); text-align: center; }
+  .login .field { text-align: left; }
+
   /* Lessons */
   .lesson {
     display: block; width: 100%; text-align: left; margin-bottom: 10px;
@@ -402,6 +411,12 @@
         <input type="file" id="importFile" accept=".json" hidden>
       </div>
     </div>
+
+    <div class="panel" id="accountPanel" hidden>
+      <h2>👤 Cuenta</h2>
+      <p class="muted" style="margin-top:0"><b id="accEmail"></b> · <span id="syncStatus">☁️ Saved</span></p>
+      <button class="btn" id="logoutBtn" style="width:100%">Log out</button>
+    </div>
   </section>
 </main>
 
@@ -426,6 +441,19 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+
+<div class="login" id="login" hidden>
+  <form class="panel" id="loginForm" autocomplete="on">
+    <div style="font-size:52px">💃</div>
+    <h2>¡Hola! Inicia sesión</h2>
+    <div class="field"><label for="lEmail">Email</label><input id="lEmail" type="email" autocomplete="username" autocapitalize="off" required></div>
+    <div class="field"><label for="lPass">Password</label><input id="lPass" type="password" autocomplete="current-password" required></div>
+    <p class="feedback bad" id="lErr" style="min-height:0"></p>
+    <button class="btn oro" id="lBtn" style="width:100%">Entrar</button>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 
 <script>
 // Your word list. One per line: español = english #Category
@@ -985,12 +1013,15 @@ function migrate(d) {
   });
   return d;
 }
-function load() {
+function readLocal(key) {
   try {
-    const d = JSON.parse(localStorage.getItem(KEY));
+    const d = JSON.parse(localStorage.getItem(key));
     if (d && Array.isArray(d.words)) return migrate(d);
   } catch (e) {}
-  return {
+  return null;
+}
+function load() {
+  return readLocal(KEY) || {
     words: [],
     dir: 'es-en', cat: 'all',
     streak: 0, lastDay: null,
@@ -998,7 +1029,88 @@ function load() {
 }
 let state = load();
 let practiseAll = false;
-function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+// Each account keeps its own copy on the device, and Supabase holds the real one
+const cacheKey = () => user ? KEY + ':' + user.id : KEY;
+function save() {
+  try { localStorage.setItem(cacheKey(), JSON.stringify(state)); } catch (e) {}
+  queueSync();
+}
+
+// ---------- Supabase: login + cloud storage ----------
+// Fill these in from Supabase → Project Settings → API. The anon/publishable key is safe to publish:
+// row level security (supabase/setup.sql) only lets each account read and write its own row.
+const SUPABASE_URL = 'YOUR-SUPABASE-URL';
+const SUPABASE_ANON_KEY = 'YOUR-SUPABASE-ANON-KEY';
+const sb = SUPABASE_URL.startsWith('https://') && window.supabase
+  ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+let user = null, syncTimer = null, lastSync = null;
+
+function setSync(text) { $('syncStatus').textContent = text; }
+function queueSync() {
+  if (!user) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(pushState, 1500);
+  setSync('⏳ Saving…');
+}
+async function pushState() {
+  clearTimeout(syncTimer); syncTimer = null;
+  if (!user) return;
+  const updated_at = new Date().toISOString();
+  const { error } = await sb.from('progress').upsert({ user_id: user.id, data: state, updated_at });
+  if (error) setSync('⚠️ Not saved to the cloud');
+  else { lastSync = updated_at; setSync('☁️ Saved'); }
+}
+// Load the cloud copy if it's newer than what this device last saved
+async function pullState() {
+  const { data, error } = await sb.from('progress').select('data, updated_at').eq('user_id', user.id).maybeSingle();
+  if (error) { setSync('⚠️ Offline — using this device’s copy'); return; }
+  if (!data) {
+    // First login: upload whatever progress this device already has, then stop using the shared copy
+    await pushState();
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    return;
+  }
+  if (!lastSync || data.updated_at > lastSync) {
+    state = migrate(data.data); lastSync = data.updated_at;
+    try { localStorage.setItem(cacheKey(), JSON.stringify(state)); } catch (e) {}
+  }
+  setSync('☁️ Saved');
+}
+async function signedIn(u) {
+  user = u;
+  state = readLocal(cacheKey()) || state;
+  await pullState();
+  $('login').hidden = true;
+  $('accountPanel').hidden = false;
+  $('accEmail').textContent = user.email;
+  start();
+}
+async function startAuth() {
+  if (!sb) return start(); // Supabase not set up: everything stays on this device
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) return signedIn(session.user);
+  $('login').hidden = false;
+}
+$('loginForm').onsubmit = async e => {
+  e.preventDefault();
+  $('lErr').textContent = '';
+  $('lBtn').disabled = true;
+  const { data, error } = await sb.auth.signInWithPassword({ email: $('lEmail').value.trim(), password: $('lPass').value });
+  $('lBtn').disabled = false;
+  if (error) { $('lErr').textContent = 'Wrong email or password'; return; }
+  signedIn(data.user);
+};
+$('logoutBtn').onclick = async () => {
+  if (syncTimer) await pushState();
+  await sb.auth.signOut();
+  location.reload();
+};
+// Save right away when the app is closed or hidden, and pick up changes from other devices when it comes back
+document.addEventListener('visibilitychange', async () => {
+  if (!user) return;
+  if (document.hidden) { if (syncTimer) pushState(); return; }
+  if (!syncTimer) { await pullState(); renderDir(); refreshAll(); }
+});
 
 // ---------- helpers ----------
 const $ = id => document.getElementById(id);
@@ -1501,14 +1613,18 @@ $('siestaYes').onclick = () => {
 // ---------- init ----------
 const f = pick(FRASES);
 $('frase').innerHTML = `<b>${f[0]}</b> — ${f[1]}`;
-renderDir();
-if (state.myWordsVersion !== MY_WORDS_VERSION) {
-  addLines(MY_WORDS); state.myWordsVersion = MY_WORDS_VERSION; save();
-}
 // Coming back to the app later picks up any words that have become due
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshAll(); });
 if ('speechSynthesis' in window) speechSynthesis.getVoices();
-refreshAll();
+// Runs once we know whose words to show
+function start() {
+  renderDir();
+  if (state.myWordsVersion !== MY_WORDS_VERSION) {
+    addLines(MY_WORDS); state.myWordsVersion = MY_WORDS_VERSION; save();
+  }
+  refreshAll();
+}
+startAuth();
 </script>
 </body>
 </html>
