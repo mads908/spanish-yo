@@ -450,6 +450,16 @@
     <div class="field"><label for="lPass">Password</label><input id="lPass" type="password" autocomplete="current-password" required></div>
     <p class="feedback bad" id="lErr" style="min-height:0"></p>
     <button class="btn oro" id="lBtn" style="width:100%">Entrar</button>
+    <button type="button" class="btn" id="forgotBtn" style="width:100%;margin-top:8px;background:none;border:none;font-size:14px;color:var(--muted)">Forgot your password?</button>
+  </form>
+  <form class="panel" id="pwForm" hidden>
+    <div style="font-size:52px">🔐</div>
+    <h2>Choose your password</h2>
+    <p class="muted" id="pwEmail"></p>
+    <div class="field"><label for="pw1">New password (6+ characters)</label><input id="pw1" type="password" autocomplete="new-password" required></div>
+    <div class="field"><label for="pw2">Type it again</label><input id="pw2" type="password" autocomplete="new-password" required></div>
+    <p class="feedback bad" id="pwErr" style="min-height:0"></p>
+    <button class="btn oro" style="width:100%">Save &amp; start</button>
   </form>
 </div>
 
@@ -1039,9 +1049,11 @@ function save() {
 // ---------- Supabase: login + cloud storage ----------
 // Fill these in from Supabase → Project Settings → API. The anon/publishable key is safe to publish:
 // row level security (supabase/setup.sql) only lets each account read and write its own row.
-const SUPABASE_URL = 'YOUR-SUPABASE-URL';
+const SUPABASE_URL = 'https://dwglwaanfljyuuzxwwjf.supabase.co';
 const SUPABASE_ANON_KEY = 'YOUR-SUPABASE-ANON-KEY';
-const sb = SUPABASE_URL.startsWith('https://') && window.supabase
+// Opened from a "choose your password" link? Read it before Supabase consumes the URL.
+const linkType = new URLSearchParams(location.hash.slice(1)).get('type');
+const sb = !SUPABASE_ANON_KEY.startsWith('YOUR') && window.supabase
   ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 let user = null, syncTimer = null, lastSync = null;
 
@@ -1088,9 +1100,33 @@ async function signedIn(u) {
 async function startAuth() {
   if (!sb) return start(); // Supabase not set up: everything stays on this device
   const { data: { session } } = await sb.auth.getSession();
+  if (session && (linkType === 'invite' || linkType === 'recovery')) return showSetPassword(session.user);
   if (session) return signedIn(session.user);
   $('login').hidden = false;
 }
+// Everyone picks their own password the first time, from a personal link
+function showSetPassword(u) {
+  history.replaceState(null, '', location.pathname);
+  $('login').hidden = false; $('loginForm').hidden = true; $('pwForm').hidden = false;
+  $('pwEmail').textContent = u.email;
+}
+$('pwForm').onsubmit = async e => {
+  e.preventDefault();
+  const pw = $('pw1').value;
+  if (pw.length < 6) { $('pwErr').textContent = 'Use at least 6 characters'; return; }
+  if (pw !== $('pw2').value) { $('pwErr').textContent = 'The two passwords don’t match'; return; }
+  const { data, error } = await sb.auth.updateUser({ password: pw });
+  if (error) { $('pwErr').textContent = 'That didn’t work — ask Mads for a new link'; return; }
+  $('pwForm').hidden = true; $('loginForm').hidden = false;
+  toast('🔐 Password saved');
+  signedIn(data.user);
+};
+$('forgotBtn').onclick = async () => {
+  const email = $('lEmail').value.trim();
+  if (!email) { $('lErr').textContent = 'Type your email first'; return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  $('lErr').textContent = error ? 'Couldn’t send the email — ask Mads for a new link' : '📬 Check your email for a link to choose a new password';
+};
 $('loginForm').onsubmit = async e => {
   e.preventDefault();
   $('lErr').textContent = '';
