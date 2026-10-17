@@ -1,0 +1,1492 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="¡Vocab!">
+<meta name="theme-color" content="#1c1416">
+<title>¡Vamos Vocab!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #1c1416;
+    --bg-2: #261b1e;
+    --card: #2f2226;
+    --card-2: #3a2a2f;
+    --line: #4a363c;
+    --text: #f7ece4;
+    --muted: #bfa9a0;
+    --rojo: #e2463f;
+    --oro: #f5b83d;
+    --naranja: #f07b3f;
+    --verde: #5fbf8a;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    background:
+      radial-gradient(1200px 500px at 50% -200px, rgba(240,123,63,.18), transparent 70%),
+      var(--bg);
+    color: var(--text);
+    font-family: "Nunito", system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding-bottom: calc(90px + env(safe-area-inset-bottom));
+  }
+  h1, h2, .display { font-family: "Fraunces", Georgia, serif; }
+  button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; }
+  input, select { font: inherit; font-size: 16px; color: var(--text); }
+
+  /* Papel picado banner */
+  .picado {
+    height: 26px;
+    background:
+      linear-gradient(135deg, transparent 50%, var(--bg) 50%) 0 13px / 26px 13px repeat-x,
+      linear-gradient(225deg, transparent 50%, var(--bg) 50%) 0 13px / 26px 13px repeat-x,
+      linear-gradient(90deg, var(--rojo) 0 20%, var(--oro) 20% 40%, var(--naranja) 40% 60%, var(--verde) 60% 80%, #c95ad6 80%);
+    background-size: 26px 13px, 26px 13px, 260px 26px;
+    opacity: .9;
+  }
+  header {
+    max-width: 720px; margin: 0 auto;
+    padding: calc(14px + env(safe-area-inset-top)) 16px 8px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  header h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -.5px; }
+  header h1 span { color: var(--oro); }
+  .stats { display: flex; gap: 8px; font-size: 14px; font-weight: 800; }
+  .pill {
+    background: var(--card); border: 1px solid var(--line);
+    padding: 6px 10px; border-radius: 999px; white-space: nowrap;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 8px 16px 24px; }
+  .frase {
+    color: var(--muted); font-size: 14px; margin: 0 0 14px;
+  }
+  .frase b { color: var(--oro); }
+
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .select, .chip {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; padding: 9px 12px; font-size: 15px; font-weight: 600;
+  }
+  .chip.on { background: var(--oro); color: #2a1a0c; border-color: var(--oro); }
+
+  .view { display: none; }
+  .view.active { display: block; animation: rise .25s ease; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+
+  /* Flashcards */
+  .flash-wrap { perspective: 1200px; margin: 6px 0 16px; }
+  .flash {
+    position: relative; width: 100%; height: 280px;
+    transform-style: preserve-3d; transition: transform .5s cubic-bezier(.3,.8,.3,1);
+    cursor: pointer;
+  }
+  .flash.flipped { transform: rotateY(180deg); }
+  .face {
+    position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    border-radius: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 20px; text-align: center;
+    background: linear-gradient(160deg, var(--card-2), var(--card));
+    border: 1px solid var(--line);
+    box-shadow: 0 20px 40px -20px rgba(0,0,0,.6);
+  }
+  .face.back { transform: rotateY(180deg); background: linear-gradient(160deg, #4a2a22, #34201f); border-color: #6a3a2c; }
+  .face .word { font-family: "Fraunces", serif; font-size: clamp(32px, 9vw, 48px); font-weight: 800; line-height: 1.1; }
+  .face .lang { position: absolute; top: 16px; left: 18px; font-size: 13px; font-weight: 800; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .face .hint { position: absolute; bottom: 16px; font-size: 13px; color: var(--muted); }
+  .speak {
+    position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(255,255,255,.06); font-size: 20px;
+  }
+  .row { display: flex; gap: 10px; }
+  .btn {
+    flex: 1; padding: 15px 16px; border-radius: 14px; font-weight: 800; font-size: 16px;
+    background: var(--card); border: 1px solid var(--line);
+    transition: transform .1s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn.rojo { background: var(--rojo); border-color: var(--rojo); color: #fff; }
+  .btn.verde { background: var(--verde); border-color: var(--verde); color: #10241a; }
+  .btn.oro { background: var(--oro); border-color: var(--oro); color: #2a1a0c; }
+  .counter { text-align: center; color: var(--muted); font-size: 14px; margin-top: 12px; }
+
+  /* Match */
+  .match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .match-col { display: flex; flex-direction: column; gap: 10px; }
+  .tile {
+    padding: 16px 10px; min-height: 58px; border-radius: 14px; font-weight: 800; font-size: 16px;
+    background: var(--card); border: 2px solid var(--line); text-align: center;
+    transition: background .15s, border-color .15s, opacity .3s, transform .1s;
+  }
+  .tile:active { transform: scale(.97); }
+  .tile.sel { border-color: var(--oro); background: #3d2f1c; }
+  .tile.done { border-color: var(--verde); background: #1f3328; opacity: .45; pointer-events: none; }
+  .tile.wrong { border-color: var(--rojo); animation: shake .3s; }
+  @keyframes shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+  .match-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; color: var(--muted); font-weight: 700; }
+
+  /* Write */
+  .prompt-card {
+    background: linear-gradient(160deg, var(--card-2), var(--card));
+    border: 1px solid var(--line); border-radius: 24px; padding: 26px 20px; text-align: center; position: relative;
+    margin-bottom: 14px;
+  }
+  .prompt-card .lang { font-size: 13px; font-weight: 800; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .prompt-card .word { font-family: "Fraunces", serif; font-size: clamp(30px, 8vw, 42px); font-weight: 800; margin: 8px 0 2px; }
+  .answer {
+    width: 100%; padding: 16px; border-radius: 14px; background: var(--bg-2); border: 2px solid var(--line);
+    font-size: 20px; text-align: center; outline: none;
+  }
+  .answer:focus { border-color: var(--oro); }
+  .answer.ok { border-color: var(--verde); }
+  .answer.bad { border-color: var(--rojo); }
+  .accents { display: flex; gap: 6px; justify-content: center; margin: 10px 0; flex-wrap: wrap; }
+  .accents button {
+    min-width: 40px; height: 40px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); font-weight: 800; font-size: 17px;
+  }
+  .feedback { min-height: 48px; text-align: center; font-weight: 700; margin: 6px 0 10px; }
+  .feedback.ok { color: var(--verde); }
+  .feedback.bad { color: var(--rojo); }
+  .feedback small { display: block; color: var(--muted); font-weight: 600; }
+
+  /* Add */
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .panel h2 { margin: 0 0 12px; font-size: 20px; }
+  .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+  .field label { font-size: 13px; color: var(--muted); font-weight: 700; }
+  .field input, textarea {
+    padding: 12px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--line); outline: none; width: 100%;
+    font: inherit; font-size: 16px; color: var(--text);
+  }
+  textarea { min-height: 110px; resize: vertical; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .list { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow: auto; }
+  .item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-2); border-radius: 12px; }
+  .item .es { font-weight: 800; }
+  .item .en { color: var(--muted); }
+  .item .cat { margin-left: auto; font-size: 12px; color: var(--muted); }
+  .item .del { color: var(--rojo); font-size: 18px; padding: 0 4px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--line); }
+  .dot.m1 { background: var(--naranja); } .dot.m2 { background: var(--oro); } .dot.m3 { background: var(--verde); }
+  .muted { color: var(--muted); font-size: 14px; }
+  .done { text-align: center; padding: 28px 16px; }
+  .done h2 { font-size: 28px; margin: 6px 0; }
+
+  /* Bottom nav */
+  nav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+    background: rgba(28,20,22,.92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid var(--line);
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  }
+  nav .inner { max-width: 720px; margin: 0 auto; display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; }
+  nav button { padding: 8px 2px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; font-weight: 800; color: var(--muted); }
+
+  /* Sentence maker */
+  .who { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+  .who .chip { padding: 12px 6px; }
+  .tip { background: rgba(245,184,61,.08); border: 1px solid rgba(245,184,61,.3); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin-bottom: 14px; }
+  #sInput { font-size: 18px; }
+  .feedback u { color: var(--oro); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+  /* Lessons */
+  .lesson {
+    display: block; width: 100%; text-align: left; margin-bottom: 10px;
+    background: var(--card); border: 2px solid var(--line); border-radius: var(--radius); padding: 14px 16px;
+  }
+  .lesson.on { border-color: var(--oro); background: #33261a; }
+  .lesson h3 { margin: 0 0 4px; font-family: "Fraunces", serif; font-size: 19px; }
+  .lesson h3 small { color: var(--oro); font-family: "Nunito", sans-serif; font-size: 13px; letter-spacing: .5px; text-transform: uppercase; display: block; }
+  .lesson p { margin: 0 0 10px; color: var(--muted); font-size: 14px; line-height: 1.4; }
+  .bar { height: 8px; border-radius: 99px; background: var(--bg-2); overflow: hidden; margin-bottom: 6px; }
+  .bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--naranja), var(--oro), var(--verde)); border-radius: 99px; }
+  .lesson .meta { font-size: 13px; font-weight: 700; color: var(--muted); }
+  nav button .ico { font-size: 22px; }
+  nav button.active { color: var(--oro); background: rgba(245,184,61,.1); }
+
+  /* Siesta bubble */
+  .siesta {
+    position: fixed; left: 50%; bottom: calc(100px + env(safe-area-inset-bottom)); z-index: 30;
+    transform: translate(-50%, 30px) scale(.9); opacity: 0; pointer-events: none;
+    width: min(92vw, 380px);
+    background: linear-gradient(160deg, #3b2a5a, #2a1f3f); border: 1px solid #5c4787;
+    border-radius: 28px; padding: 20px; text-align: center;
+    box-shadow: 0 30px 60px -10px rgba(0,0,0,.7);
+    transition: all .4s cubic-bezier(.3,1.4,.5,1);
+  }
+  .siesta.show { opacity: 1; transform: translate(-50%, 0) scale(1); pointer-events: auto; animation: float 3s ease-in-out .4s infinite; }
+  @keyframes float { 50% { transform: translate(-50%, -6px); } }
+  .siesta::after {
+    content: ""; position: absolute; bottom: -10px; left: 50%; width: 20px; height: 20px; margin-left: -10px;
+    background: #2a1f3f; border-right: 1px solid #5c4787; border-bottom: 1px solid #5c4787; transform: rotate(45deg);
+  }
+  .siesta .z { font-size: 44px; }
+  .siesta h3 { font-family: "Fraunces", serif; font-size: 24px; margin: 4px 0 6px; }
+  .siesta p { margin: 0 0 14px; color: #cbbde6; font-size: 14px; }
+
+  /* Toast / confetti */
+  .toast {
+    position: fixed; top: calc(20px + env(safe-area-inset-top)); left: 50%; transform: translate(-50%, -80px);
+    background: var(--oro); color: #2a1a0c; padding: 10px 18px; border-radius: 999px; font-weight: 800; z-index: 40;
+    transition: transform .3s cubic-bezier(.3,1.4,.5,1);
+  }
+  .toast.show { transform: translate(-50%, 0); }
+  .confetti { position: fixed; top: -20px; z-index: 50; pointer-events: none; font-size: 22px; animation: fall 1.6s ease-in forwards; }
+  @keyframes fall { to { transform: translateY(105vh) rotate(540deg); opacity: .6; } }
+
+  @media (min-width: 700px) {
+    .flash { height: 340px; }
+    header h1 { font-size: 34px; }
+  }
+</style>
+</head>
+<body>
+<div class="picado"></div>
+<header>
+  <h1>¡Vamos <span>Vocab!</span></h1>
+  <div class="stats">
+    <span class="pill" id="streak" title="Days in a row">🔥 0</span>
+    <span class="pill" id="mastered" title="Words learned">⭐ 0</span>
+  </div>
+</header>
+
+<main>
+  <p class="frase" id="frase"></p>
+
+  <div class="toolbar">
+    <select class="select" id="catFilter" aria-label="Category"></select>
+    <button class="chip" id="dirBtn" title="Switch direction">🇪🇸 → 🇬🇧</button>
+    <button class="chip" id="allBtn" title="Also practise words that aren't due yet">🔁 Practise all</button>
+    <button class="chip" id="trickyBtn" title="Only the words you keep missing">😬 Tricky</button>
+    <span class="chip" id="dueCount" style="border-style:dashed">📚 0 to review</span>
+  </div>
+
+  <div class="panel done" id="done" hidden>
+    <div style="font-size:54px">🌞</div>
+    <h2>¡Todo hecho!</h2>
+    <p class="muted" id="doneNext"></p>
+    <button class="btn oro" id="doneMore" style="width:100%;margin-bottom:10px">➕ 10 more new words</button>
+    <button class="btn" id="doneAll" style="width:100%">🔁 Practise all anyway</button>
+  </div>
+
+  <!-- Flashcards -->
+  <section class="view active" id="view-flash">
+    <div class="flash-wrap">
+      <div class="flash" id="flash">
+        <div class="face front">
+          <span class="lang" id="fLangFront">Español</span>
+          <button class="speak" id="fSpeak" aria-label="Say it">🔊</button>
+          <div class="word" id="fFront"></div>
+          <span class="hint">tap to flip</span>
+        </div>
+        <div class="face back">
+          <span class="lang" id="fLangBack">English</span>
+          <div class="word" id="fBack"></div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn rojo" id="fAgain">😅 Otra vez</button>
+      <button class="btn verde" id="fKnow">💃 ¡Lo sé!</button>
+    </div>
+    <div class="counter" id="fCount"></div>
+  </section>
+
+  <!-- Match -->
+  <section class="view" id="view-match">
+    <div class="match-head">
+      <span id="mInfo">Match the pairs</span>
+      <span id="mTime">⏱ 0s</span>
+    </div>
+    <div class="match-grid">
+      <div class="match-col" id="mLeft"></div>
+      <div class="match-col" id="mRight"></div>
+    </div>
+    <div style="margin-top:16px" class="row"><button class="btn oro" id="mNew">🔀 New round</button></div>
+  </section>
+
+  <!-- Write -->
+  <section class="view" id="view-write">
+    <div class="prompt-card">
+      <button class="speak" id="wSpeak" aria-label="Say it">🔊</button>
+      <div class="lang" id="wLang">Español</div>
+      <div class="word" id="wWord"></div>
+      <div class="muted" id="wAsk">Write it in English</div>
+    </div>
+    <form id="wForm" autocomplete="off">
+      <input class="answer" id="wInput" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Tu respuesta…">
+      <div class="accents" id="accents"></div>
+      <div class="feedback" id="wFeedback"></div>
+      <div class="row">
+        <button type="button" class="btn" id="wSkip">🤷 Show me</button>
+        <button type="submit" class="btn oro" id="wCheck">Check ✓</button>
+      </div>
+    </form>
+    <div class="counter" id="wScore"></div>
+  </section>
+
+  <!-- Sentence maker -->
+  <section class="view" id="view-frases">
+    <div class="who" id="who"></div>
+    <div class="tip" id="sTip"></div>
+    <div class="prompt-card">
+      <button class="speak" id="sSpeak" aria-label="Say it">🔊</button>
+      <div class="lang">Say this in Spanish</div>
+      <div class="word" id="sEn" style="font-size:clamp(22px,6vw,30px)"></div>
+    </div>
+    <form id="sForm" autocomplete="off">
+      <input class="answer" id="sInput" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="en español…">
+      <div class="accents" id="sAccents"></div>
+    </form>
+    <div class="feedback" id="sFeedback"></div>
+    <div class="row">
+      <button class="btn" id="sShow">🤷 Show me</button>
+      <button class="btn oro" id="sCheck">Check ✓</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" id="sSave">⭐ Save to my words</button>
+      <button class="btn" id="sNext">Next frase →</button>
+    </div>
+  </section>
+
+  <!-- Lessons -->
+  <section class="view" id="view-lecciones">
+    <p class="muted" style="margin-top:0">Pick a lesson to practise only those words. Tap it again (or “Todas”) to go back to everything.</p>
+    <div id="lessonList"></div>
+  </section>
+
+  <!-- Add -->
+  <section class="view" id="view-add">
+    <div class="panel">
+      <h2>➕ Add a word</h2>
+      <form id="addForm" autocomplete="off">
+        <div class="two">
+          <div class="field"><label>Español</label><input id="aEs" required autocapitalize="off" placeholder="la playa"></div>
+          <div class="field"><label>English</label><input id="aEn" required autocapitalize="off" placeholder="the beach"></div>
+        </div>
+        <div class="field"><label>Category (optional)</label><input id="aCat" list="catList" autocapitalize="words" placeholder="Viajes"></div>
+        <datalist id="catList"></datalist>
+        <button class="btn oro" style="width:100%">Añadir ¡Olé!</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>📋 Add many at once</h2>
+      <p class="muted" style="margin-top:0">One per line: <b>español = english</b>. Add a category with <b>#</b>, e.g. <i>el tren = the train #Viajes</i></p>
+      <textarea id="bulk" placeholder="el perro = the dog #Animales&#10;el gato = the cat #Animales"></textarea>
+      <button class="btn oro" style="width:100%;margin-top:10px" id="bulkBtn">Add all</button>
+    </div>
+
+    <div class="panel">
+      <h2>📚 Your words <span class="muted" id="wordCount"></span></h2>
+      <p class="muted" style="margin-top:0">
+        <span class="dot" style="display:inline-block"></span> new
+        <span class="dot m1" style="display:inline-block;margin-left:8px"></span> learning
+        <span class="dot m2" style="display:inline-block;margin-left:8px"></span> almost
+        <span class="dot m3" style="display:inline-block;margin-left:8px"></span> learned
+      </p>
+      <div class="list" id="list"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="exportBtn">⬇️ Back up</button>
+        <button class="btn" id="importBtn">⬆️ Restore</button>
+        <input type="file" id="importFile" accept=".json" hidden>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <div class="inner">
+    <button class="active" data-view="flash"><span class="ico">🃏</span>Tarjetas</button>
+    <button data-view="match"><span class="ico">🧩</span>Emparejar</button>
+    <button data-view="write"><span class="ico">✍️</span>Escribir</button>
+    <button data-view="frases"><span class="ico">💬</span>Frases</button>
+    <button data-view="lecciones"><span class="ico">📖</span>Lecciones</button>
+    <button data-view="add"><span class="ico">➕</span>Añadir</button>
+  </div>
+</nav>
+
+<div class="siesta" id="siesta" role="dialog" aria-live="polite">
+  <div class="z">😴💤</div>
+  <h3>¿Time to take a siesta?</h3>
+  <p>You've been studying for <b id="siestaMin">8</b> minutes. Short breaks help words stick!</p>
+  <div class="row">
+    <button class="btn" id="siestaMore">Un poco más ☕</button>
+    <button class="btn oro" id="siestaYes">Sí, siesta 🌙</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// Your word list. One per line: español = english #Category
+// These get added to the app automatically (words you already have are skipped).
+// Bump MY_WORDS_VERSION after adding words here so the app picks them up.
+const MY_WORDS_VERSION = 1;
+const MY_WORDS = `
+el autobús = bus #Lección 1
+¿Cómo se llama usted? = What's your name? (form.) #Lección 1
+Con permiso. = Pardon me; Excuse me. #Lección 1
+el/la conductor(a) = driver #Lección 1
+la cosa = thing #Lección 1
+el cuaderno = notebook #Lección 1
+¿cuánto(s)/a(s)? = how much/many? #Lección 1
+¿De dónde eres? = Where are you from? (fam.) #Lección 1
+¿De dónde es usted? = Where are you from? (form.) #Lección 1
+¿de quién...? = whose...? (sing.) #Lección 1
+¿de quiénes...? = whose...? (plural) #Lección 1
+el diario = diary #Lección 1
+Encantado/a. = Delighted; Pleased to meet you. #Lección 1
+El gusto es mío. = The pleasure is mine. #Lección 1
+Hasta la vista. = See you later. #Lección 1
+Hasta pronto. = See you soon. #Lección 1
+(no) hay = there is (not); there are (not) #Lección 1
+Igualmente. = Likewise. #Lección 1
+el/la joven = young person #Lección 1
+el lápiz = pencil #Lección 1
+Le presento a... = I would like to introduce you to (name). (form.) #Lección 1
+la maleta = suitcase #Lección 1
+la mano = hand #Lección 1
+No hay de qué. = You're welcome. #Lección 1
+No muy bien. = Not very well. #Lección 1
+Nos vemos. = See you. #Lección 1
+la palabra = word #Lección 1
+el/la pasajero/a = passenger #Lección 1
+Perdón. = Pardon me; Excuse me. #Lección 1
+¿Qué hay de nuevo? = What's new? #Lección 1
+¿Qué pasa? = What's happening?; What's going on? #Lección 1
+Regular. = So-so; OK. #Lección 1
+Saludos a... = Greetings to... #Lección 1
+ser = to be #Lección 1
+Te presento a... = I would like to introduce you to (name). (fam.) #Lección 1
+a la derecha de = to the right of #Lección 2
+a la izquierda de = to the left of #Lección 2
+la administración de empresas = business administration #Lección 2
+¿Adónde? = Where (to)? #Lección 2
+al lado de = next to #Lección 2
+allá = over there #Lección 2
+allí = there #Lección 2
+bailar = to dance #Lección 2
+la biblioteca = library #Lección 2
+el borrador = eraser #Lección 2
+buscar = to look for #Lección 2
+caminar = to walk #Lección 2
+cantar = to sing #Lección 2
+cenar = to have dinner #Lección 2
+cerca de = near #Lección 2
+las ciencias = sciences #Lección 2
+el/la compañero/a de clase = classmate #Lección 2
+el/la compañero/a de cuarto = roommate #Lección 2
+comprar = to buy #Lección 2
+la contabilidad = accounting #Lección 2
+contestar = to answer #Lección 2
+conversar = to converse; to chat #Lección 2
+¿Cuál?, ¿Cuáles? = Which?; Which one(s)? #Lección 2
+¿Cuándo? = When? #Lección 2
+debajo de = below #Lección 2
+delante de = in front of #Lección 2
+desayunar = to have breakfast #Lección 2
+descansar = to rest #Lección 2
+desear = to wish; to desire #Lección 2
+detrás de = behind #Lección 2
+dibujar = to draw #Lección 2
+domingo = Sunday #Lección 2
+en = in; on #Lección 2
+encima de = on top of #Lección 2
+enseñar = to teach #Lección 2
+entre = between #Lección 2
+el escritorio = desk #Lección 2
+escuchar la radio/música = to listen (to) the radio/music #Lección 2
+la especialización = major #Lección 2
+esperar (+ inf.) = to wait (for); to hope #Lección 2
+estar = to be #Lección 2
+estudiar = to study #Lección 2
+explicar = to explain #Lección 2
+gustar = to like #Lección 2
+hablar = to talk; to speak #Lección 2
+el horario = schedule #Lección 2
+Hoy es... = Today is... #Lección 2
+jueves = Thursday #Lección 2
+lejos de = far from #Lección 2
+las lenguas extranjeras = foreign languages #Lección 2
+la librería = bookstore #Lección 2
+llegar = to arrive #Lección 2
+llevar = to carry #Lección 2
+lunes = Monday #Lección 2
+el marcador = marker #Lección 2
+martes = Tuesday #Lección 2
+la materia = subject #Lección 2
+la mesa = table #Lección 2
+miércoles = Wednesday #Lección 2
+mirar = to look (at); to watch #Lección 2
+la mochila = backpack #Lección 2
+necesitar (+ inf.) = to need #Lección 2
+el papel = paper #Lección 2
+la papelera = wastebasket #Lección 2
+el periodismo = journalism #Lección 2
+la pizarra = whiteboard #Lección 2
+la pluma = pen #Lección 2
+preguntar = to ask (a question) #Lección 2
+la prueba = test; quiz #Lección 2
+la puerta = door #Lección 2
+¿Qué día es hoy? = What day is it? #Lección 2
+regresar = to return #Lección 2
+el reloj = clock; watch #Lección 2
+la residencia estudiantil = dormitory #Lección 2
+sábado = Saturday #Lección 2
+la semana = week #Lección 2
+la silla = chair #Lección 2
+sin = without #Lección 2
+sobre = on; over #Lección 2
+la tarea = homework #Lección 2
+terminar = to finish #Lección 2
+tomar = to take; to drink #Lección 2
+trabajar = to work #Lección 2
+el trimestre = trimester; quarter #Lección 2
+la ventana = window #Lección 2
+viajar = to travel #Lección 2
+viernes = Friday #Lección 2
+abrir = to open #Lección 3
+el/la abuelo/a = grandfather/grandmother #Lección 3
+los abuelos = grandparents #Lección 3
+alemán, alemana = German #Lección 3
+alto/a = tall #Lección 3
+antipático/a = unpleasant #Lección 3
+el apellido = last name #Lección 3
+aprender (a + inf.) = to learn #Lección 3
+asistir (a) = to attend #Lección 3
+bajo/a = short (in height) #Lección 3
+beber = to drink #Lección 3
+el/la bisabuelo/a = great-grandfather/great-grandmother #Lección 3
+bonito/a = pretty #Lección 3
+compartir = to share #Lección 3
+comprender = to understand #Lección 3
+correr = to run #Lección 3
+creer (en) = to believe (in) #Lección 3
+el/la cuñado/a = brother-in-law/sister-in-law #Lección 3
+deber (+ inf.) = should #Lección 3
+decidir (+ inf.) = to decide #Lección 3
+delgado/a = thin #Lección 3
+difícil = difficult #Lección 3
+escribir = to write #Lección 3
+el/la esposo/a = husband/wife; spouse #Lección 3
+estadounidense = from the U.S. #Lección 3
+fácil = easy #Lección 3
+feo/a = ugly #Lección 3
+el/la gemelo/a = twin #Lección 3
+la gente = people #Lección 3
+gordo/a = fat #Lección 3
+guapo/a = good-looking #Lección 3
+el/la hermanastro/a = stepbrother/stepsister #Lección 3
+el/la hijastro/a = stepson/stepdaughter #Lección 3
+los hijos = children #Lección 3
+el/la ingeniero/a = engineer #Lección 3
+joven (sing.) = young #Lección 3
+jóvenes (pl.) = young #Lección 3
+leer = to read #Lección 3
+la madrastra = stepmother #Lección 3
+el/la médico/a = physician #Lección 3
+el/la medio/a hermano/a = half-brother/half-sister #Lección 3
+mismo/a = same #Lección 3
+moreno/a = brunet(te) #Lección 3
+el/la muchacho/a = boy/girl #Lección 3
+mucho/a = much; many; a lot of #Lección 3
+el/la nieto/a = grandson/granddaughter #Lección 3
+el/la niño/a = child #Lección 3
+no tener razón = to be wrong #Lección 3
+la nuera = daughter-in-law #Lección 3
+el padrastro = stepfather #Lección 3
+los padres = parents #Lección 3
+los parientes = relatives #Lección 3
+pelirrojo/a = red-haired #Lección 3
+pequeño/a = small #Lección 3
+el/la periodista = journalist #Lección 3
+el/la primo/a = cousin #Lección 3
+el/la programador(a) = computer programmer #Lección 3
+recibir = to receive #Lección 3
+rubio/a = blond(e) #Lección 3
+simpático/a = nice; likeable #Lección 3
+el/la sobrino/a = nephew/niece #Lección 3
+el/la suegro/a = father-in-law/mother-in-law #Lección 3
+tener = to have #Lección 3
+tener (mucho) calor = to be (very) hot #Lección 3
+tener (mucho) cuidado = to be (very) careful #Lección 3
+tener (mucho) frío = to be (very) cold #Lección 3
+tener (mucha) hambre = to be (very) hungry #Lección 3
+tener (mucho) miedo (de) = to be (very) afraid/scared (of) #Lección 3
+tener (mucha) prisa = to be in a (big) hurry #Lección 3
+tener razón = to be right #Lección 3
+tener (mucha) sed = to be (very) thirsty #Lección 3
+tener (mucho) sueño = to be (very) sleepy #Lección 3
+tener (mucha) suerte = to be (very) lucky #Lección 3
+tener... años = to be... years old #Lección 3
+el/la tío/a = uncle/aunt #Lección 3
+tonto/a = foolish #Lección 3
+trabajador(a) = hard-working #Lección 3
+venir = to come #Lección 3
+viejo/a = old #Lección 3
+el yerno = son-in-law #Lección 3
+almorzar (o:ue) = to have lunch #Lección 4
+andar en patineta = to skateboard #Lección 4
+el baloncesto = basketball #Lección 4
+bucear = to scuba dive #Lección 4
+el centro = downtown #Lección 4
+cerrar (e:ie) = to close #Lección 4
+el cine = movie theater #Lección 4
+comenzar (e:ie) = to begin #Lección 4
+conseguir (e:i) = to get; to obtain #Lección 4
+contar (o:ue) = to count; to tell #Lección 4
+decir (e:i) = to say; to tell #Lección 4
+decir la respuesta = to say the answer #Lección 4
+decir la verdad = to tell the truth #Lección 4
+decir mentiras = to tell lies #Lección 4
+decir que = to say that #Lección 4
+deportivo/a = sports-related #Lección 4
+la diversión = fun activity; entertainment; recreation #Lección 4
+dormir (o:ue) = to sleep #Lección 4
+empezar (e:ie) = to begin #Lección 4
+encontrar (o:ue) = to find #Lección 4
+entender (e:ie) = to understand #Lección 4
+el equipo = team #Lección 4
+escalar montañas (f., pl.) = to climb mountains #Lección 4
+escribir un mensaje electrónico = to write an e-mail #Lección 4
+escribir una carta = to write a letter #Lección 4
+el esquí (acuático) = (water) skiing #Lección 4
+esquiar = to ski #Lección 4
+el fin de semana = weekend #Lección 4
+ganar = to win #Lección 4
+hacer = to do; to make #Lección 4
+la iglesia = church #Lección 4
+ir de excursión = to go on a hike #Lección 4
+el/la jugador(a) = player #Lección 4
+jugar (u:ue) = to play (a sport or a game) #Lección 4
+leer el correo electrónico = to read e-mail #Lección 4
+leer un periódico = to read a newspaper #Lección 4
+leer una revista = to read a magazine #Lección 4
+el lugar = place #Lección 4
+mostrar (o:ue) = to show #Lección 4
+nadar = to swim #Lección 4
+la natación = swimming #Lección 4
+oír = to hear #Lección 4
+el partido = game; match #Lección 4
+el pasatiempo = pastime; hobby #Lección 4
+pasear = to take a walk #Lección 4
+pasear en bicicleta = to ride a bicycle #Lección 4
+patinar = to skate #Lección 4
+pedir (e:i) = to ask for; to request #Lección 4
+la pelota = ball #Lección 4
+pensar (+ inf.) = to intend #Lección 4
+pensar en = to think about #Lección 4
+perder (e:ie) = to lose; to miss #Lección 4
+la piscina = swimming pool #Lección 4
+poder (o:ue) = to be able to; can #Lección 4
+poner = to put; to place #Lección 4
+practicar deportes (m., pl.) = to play sports #Lección 4
+preferir (e:ie) = to prefer #Lección 4
+querer (e:ie) = to want; to love #Lección 4
+los ratos libres = spare (free) time #Lección 4
+recordar (o:ue) = to remember #Lección 4
+repetir (e:i) = to repeat #Lección 4
+salir = to leave #Lección 4
+seguir (e:i) = to follow; to continue #Lección 4
+suponer = to suppose #Lección 4
+tomar el sol = to sunbathe #Lección 4
+traer = to bring #Lección 4
+ver películas (f., pl.) = to watch movies #Lección 4
+el videojuego = video game #Lección 4
+visitar monumentos (m., pl.) = to visit monuments #Lección 4
+volver (o:ue) = to return #Lección 4
+abierto/a = open #Lección 5
+aburrido/a = bored; boring #Lección 5
+acampar = to camp #Lección 5
+ahora mismo = right now #Lección 5
+alegre = happy #Lección 5
+amable = nice; friendly #Lección 5
+el año = year #Lección 5
+el ascensor = elevator #Lección 5
+avergonzado/a = embarrassed #Lección 5
+la cama = bed #Lección 5
+el campo = countryside #Lección 5
+cansado/a = tired #Lección 5
+cerrado/a = closed #Lección 5
+confirmar una reservación = to confirm a reservation #Lección 5
+¿Cuál es la fecha (de hoy)? = What is the date (today)? #Lección 5
+cuarto/a = fourth #Lección 5
+de buen humor = in a good mood #Lección 5
+de mal humor = in a bad mood #Lección 5
+décimo/a = tenth #Lección 5
+desordenado/a = disorderly #Lección 5
+el/la empleado/a = employee #Lección 5
+enamorado/a (de) = in love (with) #Lección 5
+enero = January #Lección 5
+enojado/a = angry #Lección 5
+el equipaje = luggage #Lección 5
+equivocado/a = wrong #Lección 5
+Está (muy) nublado. = It's (very) cloudy. #Lección 5
+la estación = season #Lección 5
+la estación de autobuses = bus station #Lección 5
+la estación de tren = train station #Lección 5
+la estación del metro = subway station #Lección 5
+estar de vacaciones (f. pl.) = to be on vacation #Lección 5
+la habitación doble = double room #Lección 5
+la habitación individual = single room #Lección 5
+Hace buen tiempo. = The weather is good. #Lección 5
+Hace (mucho) calor. = It's (very) hot. #Lección 5
+Hace fresco. = It's cool. #Lección 5
+Hace (mucho) frío. = It's (very) cold. #Lección 5
+Hace mal tiempo. = The weather is bad. #Lección 5
+Hace (mucho) sol. = It's (very) sunny. #Lección 5
+Hace (mucho) viento. = It's (very) windy. #Lección 5
+hacer las maletas = to pack (one's suitcases) #Lección 5
+hacer (wind)surf = to (wind)surf #Lección 5
+hacer un viaje = to take a trip #Lección 5
+el/la huésped = guest #Lección 5
+el/la inspector(a) de aduanas = customs inspector #Lección 5
+el invierno = winter #Lección 5
+ir de compras (f. pl.) = to go shopping #Lección 5
+ir de vacaciones = to go on vacation #Lección 5
+ir en auto(móvil) (m.) = to go by car #Lección 5
+ir en autobús (m.) = to go by bus #Lección 5
+ir en avión (m.) = to go by plane #Lección 5
+ir en barco (m.) = to go by boat #Lección 5
+ir en moto(cicleta) (f.) = to go by motorcycle #Lección 5
+ir en taxi (m.) = to go by taxi #Lección 5
+jugar a las cartas = to play cards #Lección 5
+limpio/a = clean #Lección 5
+listo/a = ready; smart #Lección 5
+la llave = key #Lección 5
+la llegada = arrival #Lección 5
+llover = to rain #Lección 5
+el mar = sea #Lección 5
+el mes = month #Lección 5
+montar a caballo (m.) = to ride a horse #Lección 5
+nevar = to snow #Lección 5
+noveno/a = ninth #Lección 5
+octavo/a = eighth #Lección 5
+ocupado/a = busy #Lección 5
+ordenado/a = orderly #Lección 5
+el otoño = autumn #Lección 5
+el paisaje = landscape #Lección 5
+el pasaje (de ida y vuelta) = (round-trip) ticket #Lección 5
+el pasaporte = passport #Lección 5
+pescar = to fish #Lección 5
+el piso = floor (of a building) #Lección 5
+la planta baja = ground floor #Lección 5
+preocupado/a (por) = worried (about) #Lección 5
+la primavera = spring #Lección 5
+primer, primero/a = first #Lección 5
+¿Qué tiempo hace? = How's the weather? #Lección 5
+quinto/a = fifth #Lección 5
+sacar/tomar fotos (f. pl.) = to take photos #Lección 5
+la salida = departure; exit #Lección 5
+segundo/a = second #Lección 5
+seguro/a = sure; safe; confident #Lección 5
+séptimo/a = seventh #Lección 5
+sexto/a = sixth #Lección 5
+sucio/a = dirty #Lección 5
+la tabla de (wind)surf = surfboard/sailboard #Lección 5
+tercer, tercero/a = third #Lección 5
+todavía = yet; still #Lección 5
+triste = sad #Lección 5
+el verano = summer #Lección 5
+el/la viajero/a = traveler #Lección 5
+el abrigo = coat #Lección 6
+acabar de (+ inf.) = to have just done something #Lección 6
+el almacén = department store #Lección 6
+amarillo/a = yellow #Lección 6
+anaranjado/a = orange #Lección 6
+el año pasado = last year #Lección 6
+anoche = last night #Lección 6
+anteayer = the day before yesterday #Lección 6
+ayer = yesterday #Lección 6
+azul = blue #Lección 6
+barato/a = cheap #Lección 6
+blanco/a = white #Lección 6
+la bolsa = purse; bag #Lección 6
+la bota = boot #Lección 6
+cada = each #Lección 6
+la caja = cash register #Lección 6
+el calcetín (los calcetines) = sock(s) #Lección 6
+la camisa = shirt #Lección 6
+la camiseta = t-shirt #Lección 6
+caro/a = expensive #Lección 6
+la cartera = wallet #Lección 6
+el centro comercial = shopping mall #Lección 6
+la chaqueta = jacket #Lección 6
+el cinturón = belt #Lección 6
+conducir = to drive #Lección 6
+conocer = to know; to be acquainted with #Lección 6
+la corbata = tie #Lección 6
+corto/a = short (in length) #Lección 6
+costar (o:ue) = to cost #Lección 6
+dar = to give #Lección 6
+de repente = suddenly #Lección 6
+el/la dependiente/a = clerk #Lección 6
+desde = from #Lección 6
+el dinero = money #Lección 6
+dos veces = twice #Lección 6
+(en) efectivo = (in) cash #Lección 6
+la falda = skirt #Lección 6
+las gafas (de sol) = (sun)glasses #Lección 6
+gastar = to spend (money) #Lección 6
+gris = gray #Lección 6
+los guantes = gloves #Lección 6
+hacer juego (con) = to match (with) #Lección 6
+hasta = until #Lección 6
+hermoso/a = beautiful #Lección 6
+el impermeable = raincoat #Lección 6
+largo/a = long #Lección 6
+llevar = to wear; to take #Lección 6
+loco/a = crazy #Lección 6
+marrón, café = brown #Lección 6
+las medias = pantyhose; stockings #Lección 6
+el mercado = market #Lección 6
+el mercado al aire libre = (open-air) market #Lección 6
+morado/a = purple #Lección 6
+negro/a = black #Lección 6
+nuevo/a = new #Lección 6
+ofrecer = to offer #Lección 6
+otro/a = other; another #Lección 6
+pagar = to pay #Lección 6
+los pantalones = pants #Lección 6
+los pantalones cortos = shorts #Lección 6
+un par (de zapatos) = a pair (of shoes) #Lección 6
+parecer = to seem #Lección 6
+pasado/a (adj.) = last; past #Lección 6
+pobre = poor #Lección 6
+el precio (fijo) = (fixed) price #Lección 6
+prestar = to lend; to loan #Lección 6
+la rebaja = sale #Lección 6
+el regalo = gift #Lección 6
+regatear = to bargain #Lección 6
+rico/a = rich #Lección 6
+rojo/a = red #Lección 6
+la ropa = clothes #Lección 6
+la ropa interior = underwear #Lección 6
+rosado/a = pink #Lección 6
+saber = to know; to know how #Lección 6
+la semana pasada = last week #Lección 6
+el sombrero = hat #Lección 6
+la tienda = store #Lección 6
+traducir = to translate #Lección 6
+el traje = suit #Lección 6
+el traje de baño = bathing suit #Lección 6
+usar = to wear; to use #Lección 6
+el/la vendedor(a) = salesperson #Lección 6
+vender = to sell #Lección 6
+verde = green #Lección 6
+el vestido = dress #Lección 6
+una vez = once #Lección 6
+ya = already #Lección 6
+los zapatos de tenis = sneakers #Lección 6
+`;
+
+// Shown on the Lecciones tab
+const LESSONS = {
+  'Lección 1': { icon: '👋', title: 'Hola, ¿qué tal?', note: 'Greetings and goodbyes, introducing yourself, polite phrases, and everyday things like a notebook, a suitcase or a bus.' },
+  'Lección 2': { icon: '🎓', title: 'En la universidad', note: 'School subjects, classroom objects, days of the week, where things are (next to, behind, on top of) and everyday -ar verbs.' },
+  'Lección 3': { icon: '👨‍👩‍👧', title: 'La familia', note: 'Family members, describing people (tall, blond, nice), nationalities, -er/-ir verbs and “tener” expressions like tener hambre.' },
+  'Lección 4': { icon: '⚽', title: 'Los pasatiempos', note: 'Sports and hobbies, places around town, and verbs that change their stem (o→ue, e→ie, e→i) like dormir, querer and pedir.' },
+  'Lección 5': { icon: '✈️', title: 'Las vacaciones', note: 'Travel, hotels and transport, the weather, months and seasons, 1st–10th, and how you feel (cansado, nervioso, enojado).' },
+  'Lección 6': { icon: '🛍️', title: '¡De compras!', note: 'Clothes, colours, shopping and paying, and past-time words like ayer, anoche and la semana pasada.' },
+  'Frases': { icon: '💬', title: 'Saved sentences', note: 'Sentences you saved from the Frases tab.' },
+};
+
+// Sentence maker. usted = polite "you", tú = casual "you".
+const SENTENCES = {
+  profe: {
+    label: '👨‍🏫 Profesor', tip: 'Use <b>usted</b> with your professor — it’s the polite “you”.',
+    list: [
+      ['¿Puedo hacerle una pregunta?', 'Can I ask you a question?'],
+      ['La tarea fue súper difícil.', 'The homework was super hard.'],
+      ['Gracias por su ayuda.', 'Thank you for your help.'],
+      ['No entendí la última parte.', 'I didn’t understand the last part.'],
+      ['¿Podría repetirlo, por favor?', 'Could you repeat that, please?'],
+      ['Me gustó mucho la clase de hoy.', 'I really liked today’s class.'],
+      ['Lo siento, llegué tarde.', 'I’m sorry, I arrived late.'],
+      ['¿Cuándo es el examen?', 'When is the exam?'],
+      ['¿Puedo entregar la tarea mañana?', 'Can I hand in the homework tomorrow?'],
+      ['Estoy aprendiendo mucho en su clase.', 'I’m learning a lot in your class.'],
+      ['¿Tiene tiempo para hablar después de clase?', 'Do you have time to talk after class?'],
+      ['¡Que tenga un buen fin de semana!', 'Have a nice weekend!'],
+    ],
+  },
+  novia: {
+    label: '💕 Novia', tip: 'Use <b>tú</b> with your girlfriend — it’s the casual “you”.',
+    list: [
+      ['Estás muy guapa hoy.', 'You look really pretty today.'],
+      ['Te quiero mucho.', 'I love you a lot.'],
+      ['Te echo de menos.', 'I miss you.'],
+      ['¿Quieres cenar conmigo esta noche?', 'Do you want to have dinner with me tonight?'],
+      ['Me encanta tu sonrisa.', 'I love your smile.'],
+      ['Me haces muy feliz.', 'You make me very happy.'],
+      ['¿Qué tal tu día?', 'How was your day?'],
+      ['La tarea fue súper difícil hoy.', 'Homework was super hard today.'],
+      ['Eres lo mejor de mi día.', 'You’re the best part of my day.'],
+      ['¿Vemos una película esta noche?', 'Shall we watch a movie tonight?'],
+      ['Tengo sueño, pero me alegra verte.', 'I’m sleepy, but I’m glad to see you.'],
+      ['Eres muy importante para mí.', 'You are very important to me.'],
+    ],
+  },
+  mama: {
+    label: '🌸 Su mamá', tip: 'Use <b>usted</b> with her mom — polite and respectful.',
+    list: [
+      ['Mucho gusto en conocerla.', 'Very nice to meet you.'],
+      ['Usted se ve muy bien hoy.', 'You look very nice today.'],
+      ['La comida está deliciosa.', 'The food is delicious.'],
+      ['Gracias por invitarme.', 'Thank you for inviting me.'],
+      ['Su casa es muy bonita.', 'Your house is very beautiful.'],
+      ['¿Le puedo ayudar en la cocina?', 'Can I help you in the kitchen?'],
+      ['¿Cómo está usted?', 'How are you?'],
+      ['Perdone, mi español no es muy bueno.', 'Sorry, my Spanish isn’t very good.'],
+      ['Estoy aprendiendo español.', 'I’m learning Spanish.'],
+      ['Su hija es maravillosa.', 'Your daughter is wonderful.'],
+      ['¡Qué rico! ¿Me da la receta?', 'So tasty! Can you give me the recipe?'],
+      ['Muchas gracias por todo.', 'Thank you so much for everything.'],
+    ],
+  },
+};
+
+const FRASES = [
+  ['Poco a poco se va lejos', 'Little by little, you go far'],
+  ['Más vale tarde que nunca', 'Better late than never'],
+  ['El que no arriesga no gana', 'Nothing ventured, nothing gained'],
+  ['A mal tiempo, buena cara', 'Put a good face on bad weather'],
+  ['Querer es poder', 'Where there is a will, there is a way'],
+  ['No hay mal que por bien no venga', 'Every cloud has a silver lining'],
+  ['Practica, practica, ¡practica!', 'Practice makes perfect'],
+];
+const PRAISE = ['¡Olé!', '¡Muy bien!', '¡Perfecto!', '¡Genial!', '¡Fantástico!', '¡Eso es!', '¡Qué crack!'];
+// Spaced repetition: each correct answer moves a word up a box, and it waits longer before coming back.
+const MIN = 60e3, DAY = 864e5;
+const INTERVALS = [0, 10 * MIN, 1 * DAY, 3 * DAY, 7 * DAY, 16 * DAY, 35 * DAY, 90 * DAY];
+const NEW_PER_DAY = 15; // new words introduced per day, in list order
+const SIESTA_AFTER = 7.5 * 60; // seconds of active study
+const SNOOZE = 5 * 60;
+
+// ---------- storage ----------
+const KEY = 'vamosVocab.v1';
+function migrate(d) {
+  // Drop the old built-in starter words (ids s0, s1, …)
+  d.words = d.words.filter(w => !/^s\d+$/.test(w.id));
+  d.words.forEach(w => {
+    if (w.box == null) { w.box = Math.min(w.score || 0, 2); w.due = 0; delete w.score; }
+  });
+  return d;
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(KEY));
+    if (d && Array.isArray(d.words)) return migrate(d);
+  } catch (e) {}
+  return {
+    words: [],
+    dir: 'es-en', cat: 'all',
+    streak: 0, lastDay: null,
+  };
+}
+let state = load();
+let practiseAll = false;
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+// ---------- helpers ----------
+const $ = id => document.getElementById(id);
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const pick = a => a[Math.random() * a.length | 0];
+const plain = s => s.toLowerCase().replace(/[’ʼ]/g, "'").replace(/[¿?¡!.,…]/g, '').replace(/\s+/g, ' ').trim();
+const norm = s => plain(s).normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/^(the|a|an|to|el|la|los|las|un|una)\s+/, '').trim();
+// Every answer we accept for textbook notation like "el/la abuelo/a", "(Muy) bien, gracias." or "almorzar (o:ue)"
+function variants(target) {
+  const out = new Set();
+  // Grammar notes such as (form.), (o:ue), (+ inf.), (m., pl.) are never part of the answer
+  target = target.replace(/\([^)]*[.:+][^)]*\)/g, '');
+  target.split(';').forEach(part => {
+    const pieces = part.split(',');
+    // "alemán, alemana" means either one; "(Muy) bien, gracias." is a single phrase
+    const alts = pieces.length > 1 && pieces.every(p => p.trim().split(/\s+/).length === 1) ? pieces : [part];
+    alts.forEach(a => [0, 1].forEach(second => {
+      // "abuelo/a" -> abuelo | abuela, "radio/música" -> radio | música
+      const s = a.replace(/(\S+)\/(\S+)/g, (m, x, y) =>
+        !second ? x : y.length <= 2 && x.length > 2 ? x.slice(0, -y.length) + y : y);
+      // Words in brackets are optional: "(Muy) bien" -> "bien" | "muy bien", "conductor(a)" -> conductor | conductora
+      [s.replace(/\([^)]*\)/g, ''), s.replace(/[()]/g, '')].forEach(v => { v = plain(v); if (v) out.add(v); });
+    }));
+  });
+  return [...out];
+}
+const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function inCat() {
+  return state.cat === 'all' ? state.words : state.words.filter(x => (x.cat || 'Mis palabras') === state.cat);
+}
+// New words never seen have due === 0
+function newLeft() {
+  if (state.newDay !== dayStr()) { state.newDay = dayStr(); state.newCount = 0; state.newExtra = 0; }
+  return Math.max(0, NEW_PER_DAY + state.newExtra - state.newCount);
+}
+// Words due for review plus today's share of new words
+function dueWords() {
+  const words = inCat(), now = Date.now();
+  const review = words.filter(x => x.due > 0 && x.due <= now);
+  return review.concat(words.filter(x => x.due === 0).slice(0, newLeft()));
+}
+// A word you've missed 2+ times is "tricky": it gets shorter breaks until you've really learned it
+const isTricky = w => (w.misses || 0) >= 2;
+let trickyOnly = false;
+function pool() {
+  if (trickyOnly) return inCat().filter(isTricky);
+  return practiseAll ? inCat() : dueWords();
+}
+// Words in lower boxes come up more often
+function weightedPick(list, avoid) {
+  const cands = list.length > 1 ? list.filter(w => w !== avoid) : list;
+  const weights = cands.map(w => INTERVALS.length - w.box);
+  let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < cands.length; i++) { r -= weights[i]; if (r <= 0) return cands[i]; }
+  return cands[0];
+}
+function bump(w, ok) {
+  const now = Date.now();
+  if (w.due === 0) { newLeft(); state.newCount++; }
+  if (ok) {
+    // Practising a word early doesn't push it further out
+    if (w.due <= now) {
+      w.box = Math.min(w.box + 1, INTERVALS.length - 1);
+      w.due = now + INTERVALS[w.box] * (isTricky(w) ? 0.5 : 1);
+      // Remembering it after a week or more slowly clears the tricky mark
+      if (w.box >= 4 && w.misses) w.misses--;
+    }
+  } else {
+    // Forgot it: back to unlearned, it has to climb the steps again
+    w.box = 0; w.due = now;
+    w.misses = (w.misses || 0) + 1;
+  }
+  save(); updateStats();
+}
+function fmtWait(ms) {
+  if (ms <= 0) return 'now';
+  if (ms < 60 * MIN) return `in ${Math.ceil(ms / MIN)} min`;
+  if (ms < DAY) return `in ${Math.round(ms / (60 * MIN))} h`;
+  const d = Math.round(ms / DAY); return `in ${d} day${d > 1 ? 's' : ''}`;
+}
+function checkDone() {
+  const empty = ['flash', 'match', 'write'].includes(view) && pool().length === 0;
+  $('done').hidden = !empty;
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', !empty && v.id === 'view-' + view));
+  if (empty) {
+    const words = inCat();
+    const next = Math.min(...words.filter(w => w.due > 0).map(w => w.due));
+    const unseen = words.filter(w => w.due === 0).length;
+    let msg = words.length ? 'Nothing to review right now.' : 'No words here yet — add some in Añadir.';
+    if (trickyOnly && words.length) msg = 'No tricky words right now — ¡muy bien! Turn off 😬 Tricky to go back to normal.';
+    if (unseen) msg += ` You've done today's new words (${unseen} still waiting).`;
+    if (isFinite(next)) msg += ` Next check-up ${fmtWait(next - Date.now())}.`;
+    $('doneNext').textContent = msg;
+    $('doneMore').hidden = !unseen;
+  }
+  return empty;
+}
+
+function speak(text) {
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  // Read "el/la abuelo/a (o:ue)" as "el abuelo"
+  const u = new SpeechSynthesisUtterance(text.replace(/\([^)]*\)/g, '').replace(/\/\S+/g, ''));
+  u.lang = 'es-ES'; u.rate = 0.85;
+  const v = speechSynthesis.getVoices().find(v => v.lang.startsWith('es'));
+  if (v) u.voice = v;
+  speechSynthesis.speak(u);
+}
+
+let toastT;
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1400);
+}
+function confetti(n = 18) {
+  const bits = ['🌶️', '💃', '🎉', '🍊', '⭐', '🌞', '🪭'];
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement('span');
+    s.className = 'confetti'; s.textContent = pick(bits);
+    s.style.left = Math.random() * 100 + 'vw';
+    s.style.animationDelay = Math.random() * .4 + 's';
+    document.body.appendChild(s); setTimeout(() => s.remove(), 2200);
+  }
+}
+
+// ---------- header / stats ----------
+function dayStr(d = new Date()) { return d.toISOString().slice(0, 10); }
+function markStudied() {
+  const today = dayStr();
+  if (state.lastDay === today) return;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  state.streak = state.lastDay === dayStr(y) ? state.streak + 1 : 1;
+  state.lastDay = today; save(); updateStats();
+}
+function updateStats() {
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const alive = state.lastDay === dayStr() || state.lastDay === dayStr(y);
+  $('streak').textContent = '🔥 ' + (alive ? state.streak : 0);
+  $('mastered').textContent = '⭐ ' + state.words.filter(w => w.box >= 4).length + '/' + state.words.length;
+  $('dueCount').textContent = `📚 ${dueWords().length} to review`;
+}
+function renderCats() {
+  const cats = [...new Set(state.words.map(w => w.cat || 'Mis palabras'))].sort();
+  if (state.cat !== 'all' && !cats.includes(state.cat)) state.cat = 'all';
+  $('catFilter').innerHTML = '<option value="all">🌍 All words</option>' +
+    cats.map(c => `<option ${c === state.cat ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  $('catList').innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
+}
+function renderDir() { $('dirBtn').textContent = state.dir === 'es-en' ? '🇪🇸 → 🇬🇧' : '🇬🇧 → 🇪🇸'; }
+$('catFilter').onchange = e => { state.cat = e.target.value; save(); refreshAll(); };
+$('dirBtn').onclick = () => { state.dir = state.dir === 'es-en' ? 'en-es' : 'es-en'; save(); renderDir(); refreshAll(); };
+function setPractiseAll(on) { practiseAll = on; $('allBtn').classList.toggle('on', on); refreshAll(); }
+$('allBtn').onclick = () => setPractiseAll(!practiseAll);
+$('doneAll').onclick = () => setPractiseAll(true);
+$('trickyBtn').onclick = () => { trickyOnly = !trickyOnly; $('trickyBtn').classList.toggle('on', trickyOnly); refreshAll(); };
+$('doneMore').onclick = () => { newLeft(); state.newExtra += 10; save(); refreshAll(); };
+
+// ---------- flashcards ----------
+let fCur = null, fSeen = 0, fKnown = 0;
+function nextFlash() {
+  if (checkDone()) return;
+  const p = pool();
+  fCur = weightedPick(p, fCur);
+  const esFirst = state.dir === 'es-en';
+  $('flash').classList.remove('flipped');
+  setTimeout(() => {
+    $('fFront').textContent = esFirst ? fCur.es : fCur.en;
+    $('fBack').textContent = esFirst ? fCur.en : fCur.es;
+    $('fLangFront').textContent = esFirst ? 'Español' : 'English';
+    $('fLangBack').textContent = esFirst ? 'English' : 'Español';
+  }, 150);
+  $('fCount').textContent = fSeen ? `${fKnown} of ${fSeen} known this session` : `${p.length} words to go through`;
+}
+$('flash').onclick = e => {
+  if (e.target.closest('.speak')) return;
+  $('flash').classList.toggle('flipped');
+  if ($('flash').classList.contains('flipped') && state.dir === 'en-es') speak(fCur.es);
+};
+$('fSpeak').onclick = () => fCur && speak(fCur.es);
+$('fKnow').onclick = () => { if (!fCur) return; fSeen++; fKnown++; bump(fCur, true); markStudied(); if (fKnown % 10 === 0) { confetti(); toast(pick(PRAISE)); } nextFlash(); };
+$('fAgain').onclick = () => { if (!fCur) return; fSeen++; bump(fCur, false); markStudied(); nextFlash(); };
+
+// ---------- match ----------
+let mSel = null, mLeftDone = 0, mPairs = 0, mStart = 0, mTimer = null, mMistakes = 0;
+function newMatch() {
+  clearInterval(mTimer);
+  if (checkDone()) return;
+  const uniq = list => list.filter((w, i, a) => a.findIndex(x => x.es === w.es || x.en === w.en) === i);
+  // Due words first; if there are fewer than 6, fill up with other words
+  const due = shuffle(pool());
+  // Fill with words you've already seen before using brand-new ones
+  const others = shuffle(inCat().filter(w => !due.includes(w))).sort((a, b) => (a.due === 0) - (b.due === 0));
+  const p = uniq([...due, ...others]).slice(0, 6);
+  mPairs = p.length; mLeftDone = 0; mSel = null; mMistakes = 0;
+  const tile = (w, side) => `<button class="tile" data-id="${w.id}" data-side="${side}">${esc(side === 'es' ? w.es : w.en)}</button>`;
+  $('mLeft').innerHTML = shuffle(p).map(w => tile(w, 'es')).join('');
+  $('mRight').innerHTML = shuffle(p).map(w => tile(w, 'en')).join('');
+  $('mInfo').textContent = mPairs < 2 ? 'Add more words to play!' : `0 / ${mPairs} pairs`;
+  clearInterval(mTimer); mStart = 0; $('mTime').textContent = '⏱ 0s';
+}
+function onTile(t) {
+  if (!mStart) { mStart = Date.now(); mTimer = setInterval(() => $('mTime').textContent = '⏱ ' + Math.round((Date.now() - mStart) / 1000) + 's', 500); }
+  if (t.dataset.side === 'es') speak(t.textContent);
+  if (!mSel || mSel.dataset.side === t.dataset.side) {
+    if (mSel) mSel.classList.remove('sel');
+    mSel = t; t.classList.add('sel'); return;
+  }
+  const a = mSel, b = t; mSel = null; a.classList.remove('sel');
+  const w = state.words.find(x => x.id === a.dataset.id);
+  if (a.dataset.id === b.dataset.id) {
+    a.classList.add('done'); b.classList.add('done'); mLeftDone++;
+    bump(w, true); markStudied();
+    $('mInfo').textContent = `${mLeftDone} / ${mPairs} pairs`;
+    if (mLeftDone === mPairs) {
+      clearInterval(mTimer);
+      const secs = Math.round((Date.now() - mStart) / 1000);
+      confetti(); toast(`${pick(PRAISE)} ${secs}s${mMistakes ? '' : ' — sin errores!'}`);
+      setTimeout(newMatch, 1600);
+    }
+  } else {
+    mMistakes++;
+    [a, b].forEach(x => { x.classList.add('wrong'); setTimeout(() => x.classList.remove('wrong'), 400); });
+    if (w) bump(w, false);
+  }
+}
+document.querySelector('.match-grid').onclick = e => { const t = e.target.closest('.tile'); if (t) onTile(t); };
+$('mNew').onclick = newMatch;
+
+// ---------- write ----------
+let wCur = null, wToEs = false, wRight = 0, wTotal = 0, wAnswered = false;
+function nextWrite() {
+  if (checkDone()) return;
+  wCur = weightedPick(pool(), wCur);
+  // Mix both directions so you practise writing in Spanish and in English
+  wToEs = Math.random() < (state.dir === 'en-es' ? 0.75 : 0.25);
+  $('wLang').textContent = wToEs ? 'English' : 'Español';
+  $('wWord').textContent = wToEs ? wCur.en : wCur.es;
+  $('wAsk').textContent = wToEs ? 'Write it in Spanish 🇪🇸' : 'Write it in English 🇬🇧';
+  $('wSpeak').style.visibility = wToEs ? 'hidden' : 'visible';
+  $('accents').style.display = wToEs ? 'flex' : 'none';
+  $('wInput').value = ''; $('wInput').className = 'answer';
+  $('wInput').placeholder = wToEs ? 'en español…' : 'in English…';
+  $('wFeedback').innerHTML = ''; $('wFeedback').className = 'feedback';
+  $('wCheck').textContent = 'Check ✓'; wAnswered = false;
+  $('wScore').textContent = wTotal ? `${wRight} / ${wTotal} correct` : '';
+}
+function checkWrite(giveUp) {
+  if (wAnswered) { nextWrite(); $('wInput').focus(); return; }
+  const target = wToEs ? wCur.es : wCur.en;
+  const guess = $('wInput').value;
+  if (!giveUp && !guess.trim()) return;
+  // Words with the same prompt count too, e.g. "See you later." = Hasta luego / Hasta la vista
+  const prompt = plain(wToEs ? wCur.en : wCur.es);
+  const options = state.words.filter(w => plain(wToEs ? w.en : w.es) === prompt).flatMap(w => variants(wToEs ? w.es : w.en));
+  const exact = options.includes(plain(guess));
+  const close = !exact && options.some(o => norm(o) === norm(guess));
+  const ok = !giveUp && (exact || close);
+  wTotal++; if (ok) wRight++;
+  bump(wCur, ok); markStudied();
+  $('wInput').className = 'answer ' + (ok ? 'ok' : 'bad');
+  $('wFeedback').className = 'feedback ' + (ok ? 'ok' : 'bad');
+  if (exact) $('wFeedback').innerHTML = pick(PRAISE);
+  else if (close) $('wFeedback').innerHTML = `${pick(PRAISE)} <small>Watch the spelling/accents: <b>${esc(target)}</b></small>`;
+  else $('wFeedback').innerHTML = `Casi… it's <b>${esc(target)}</b>`;
+  speak(wCur.es);
+  if (ok && wRight % 10 === 0) confetti();
+  $('wCheck').textContent = 'Next →'; wAnswered = true;
+  $('wScore').textContent = `${wRight} / ${wTotal} correct`;
+}
+$('wForm').onsubmit = e => { e.preventDefault(); checkWrite(false); };
+$('wSkip').onclick = () => checkWrite(true);
+// Double space shows the answer. iPhone turns a double space into ". ", so catch that too.
+function onDoubleSpace(input, fn) {
+  input.addEventListener('input', () => {
+    const v = input.value;
+    if (!/( {2}|\. )$/.test(v)) return;
+    input.value = v.replace(/( {2}|\. )$/, '');
+    fn();
+  });
+}
+onDoubleSpace($('wInput'), () => { if (!wAnswered) checkWrite(true); });
+let lastSpace = 0;
+document.addEventListener('keydown', e => {
+  if (e.key !== ' ' || e.target.closest('input, textarea')) return;
+  e.preventDefault();
+  if (Date.now() - lastSpace > 400) { lastSpace = Date.now(); return; }
+  lastSpace = 0;
+  if (view === 'flash') $('flash').click();
+  else if (view === 'write' && !wAnswered) checkWrite(true);
+  else if (view === 'frases' && !sDone) $('sShow').click();
+});
+$('wSpeak').onclick = () => wCur && speak(wCur.es);
+function accentBar(box, i) {
+  box.innerHTML = ['á', 'é', 'í', 'ó', 'ú', 'ñ', 'ü', '¿', '¡'].map(c => `<button type="button">${c}</button>`).join('');
+  box.onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const s = i.selectionStart ?? i.value.length;
+    i.value = i.value.slice(0, s) + b.textContent + i.value.slice(i.selectionEnd ?? s);
+    i.focus(); i.setSelectionRange(s + 1, s + 1);
+  };
+}
+accentBar($('accents'), $('wInput'));
+
+// ---------- sentence maker ----------
+// Write the whole sentence in Spanish yourself.
+let sWho = 'novia', sCur = null, sDone = false;
+$('who').innerHTML = Object.entries(SENTENCES).map(([k, v]) => `<button class="chip" data-who="${k}">${v.label}</button>`).join('');
+$('who').onclick = e => { const b = e.target.closest('[data-who]'); if (b) { sWho = b.dataset.who; sCur = null; nextSentence(); } };
+function nextSentence() {
+  const s = SENTENCES[sWho];
+  document.querySelectorAll('#who .chip').forEach(b => b.classList.toggle('on', b.dataset.who === sWho));
+  $('sTip').innerHTML = s.tip;
+  sCur = pick(s.list.length > 1 ? s.list.filter(x => x !== sCur) : s.list);
+  sDone = false;
+  $('sEn').textContent = sCur[1];
+  $('sInput').value = ''; $('sInput').className = 'answer';
+  $('sFeedback').innerHTML = ''; $('sFeedback').className = 'feedback';
+  $('sCheck').textContent = 'Check ✓';
+}
+function checkSentence(giveUp) {
+  if (sDone) { nextSentence(); $('sInput').focus(); return; }
+  const guess = $('sInput').value;
+  if (!giveUp && !guess.trim()) return;
+  const exact = plain(guess) === plain(sCur[0]);
+  const close = !exact && norm(guess) === norm(sCur[0]);
+  const ok = !giveUp && (exact || close);
+  // Underline the words in the right answer that you didn't write (accents count)
+  const typed = new Set(plain(guess).split(' '));
+  const marked = sCur[0].split(' ').map(t => typed.has(plain(t)) ? esc(t) : `<u>${esc(t)}</u>`).join(' ');
+  sDone = true;
+  $('sCheck').textContent = 'Next →';
+  $('sInput').className = 'answer ' + (ok ? 'ok' : 'bad');
+  $('sFeedback').className = 'feedback ' + (ok ? 'ok' : 'bad');
+  if (exact) $('sFeedback').innerHTML = pick(PRAISE);
+  else if (close) $('sFeedback').innerHTML = `${pick(PRAISE)} <small>Watch the accents: ${marked}</small>`;
+  else if (giveUp) $('sFeedback').innerHTML = `<b>${esc(sCur[0])}</b><small>Read it out loud, then try the next one</small>`;
+  else $('sFeedback').innerHTML = `Casi… ${marked}<small>Underlined = what to fix</small>`;
+  if (ok) { markStudied(); confetti(10); }
+  speak(sCur[0]);
+}
+$('sForm').onsubmit = e => { e.preventDefault(); checkSentence(false); };
+$('sCheck').onclick = () => checkSentence(false);
+$('sShow').onclick = () => checkSentence(true);
+accentBar($('sAccents'), $('sInput'));
+onDoubleSpace($('sInput'), () => { if (!sDone) checkSentence(true); });
+$('sNext').onclick = nextSentence;
+$('sSpeak').onclick = () => speak(sCur[0]);
+$('sSave').onclick = () => {
+  if (addWord(sCur[0], sCur[1], 'Frases')) { save(); refreshAll(); toast('⭐ Saved to your words'); }
+  else toast('Already saved');
+};
+nextSentence();
+
+// ---------- lessons ----------
+function renderLessons() {
+  const now = Date.now();
+  const cats = [...new Set(state.words.map(w => w.cat || 'Mis palabras'))].sort();
+  const card = (cat, words, info) => {
+    const learned = words.filter(w => w.box >= 4).length;
+    const review = words.filter(w => w.due > 0 && w.due <= now).length;
+    const fresh = words.filter(w => w.due === 0).length;
+    const tricky = words.filter(isTricky).length;
+    const meta = [`⭐ ${learned}/${words.length} learned`, review && `📚 ${review} to review`, fresh && `🆕 ${fresh} new`, tricky && `😬 ${tricky} tricky`].filter(Boolean).join(' · ');
+    return `<button class="lesson ${state.cat === cat ? 'on' : ''}" data-cat="${esc(cat)}">
+      <h3><small>${info.icon} ${esc(info.label || cat)}</small>${esc(info.title)}</h3>
+      <p>${esc(info.note)}</p>
+      <div class="bar"><span style="width:${words.length ? learned / words.length * 100 : 0}%"></span></div>
+      <div class="meta">${meta}</div>
+    </button>`;
+  };
+  $('lessonList').innerHTML =
+    card('all', state.words, { icon: '🌍', label: 'Todas', title: 'All lessons', note: 'Everything mixed together — the app picks what you need to review.' }) +
+    cats.map(c => card(c, state.words.filter(w => (w.cat || 'Mis palabras') === c),
+      LESSONS[c] || { icon: '📝', title: c, note: 'Words you added yourself.' })).join('');
+}
+$('lessonList').onclick = e => {
+  const b = e.target.closest('.lesson'); if (!b) return;
+  state.cat = state.cat === b.dataset.cat ? 'all' : b.dataset.cat;
+  save(); refreshAll();
+  toast(state.cat === 'all' ? '🌍 All lessons' : '📖 ' + state.cat);
+  go('flash');
+};
+
+// ---------- add / manage ----------
+function addWord(es, en, cat) {
+  es = es.trim(); en = en.trim(); cat = (cat || '').trim();
+  if (!es || !en) return false;
+  if (state.words.some(w => w.es.toLowerCase() === es.toLowerCase() && w.en.toLowerCase() === en.toLowerCase())) return false;
+  state.words.push({ id: 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), es, en, cat: cat || 'Mis palabras', box: 0, due: 0 });
+  return true;
+}
+function renderList() {
+  $('wordCount').textContent = `(${state.words.length})`;
+  const words = state.words.slice().reverse(), now = Date.now();
+  $('list').innerHTML = words.map(w => `
+    <div class="item">
+      <span class="dot ${w.box >= 4 ? 'm3' : w.box === 3 ? 'm2' : w.box >= 1 ? 'm1' : ''}"></span>
+      <span class="es">${esc(w.es)}</span><span class="en">${esc(w.en)}</span>
+      ${w.misses ? `<span class="muted" title="Times missed">${isTricky(w) ? '😬' : ''}✗${w.misses}</span>` : ''}
+      <span class="cat">${esc(w.cat || '')} · ${w.due === 0 ? 'new' : w.due <= now ? 'review now' : fmtWait(w.due - now)}</span>
+      <button class="del" data-id="${w.id}" aria-label="Delete">✕</button>
+    </div>`).join('');
+}
+$('list').onclick = e => {
+  const b = e.target.closest('.del'); if (!b) return;
+  const w = state.words.find(x => x.id === b.dataset.id);
+  if (!w || !confirm(`Delete "${w.es}"?`)) return;
+  state.words = state.words.filter(x => x !== w); save(); refreshAll();
+};
+$('addForm').onsubmit = e => {
+  e.preventDefault();
+  if (addWord($('aEs').value, $('aEn').value, $('aCat').value)) {
+    toast('¡Añadido! ' + $('aEs').value);
+    $('aEs').value = ''; $('aEn').value = ''; save(); refreshAll(); $('aEs').focus();
+  } else toast('Already in your list');
+};
+function addLines(text) {
+  let n = 0;
+  text.split('\n').forEach(line => {
+    const [pair, cat] = line.split('#');
+    const parts = (pair || '').split(/=|\t| - /);
+    if (parts.length >= 2 && addWord(parts[0], parts.slice(1).join(' '), cat)) n++;
+  });
+  return n;
+}
+$('bulkBtn').onclick = () => {
+  const n = addLines($('bulk').value);
+  save(); refreshAll(); toast(n ? `¡${n} new words!` : 'Nothing new to add');
+  if (n) $('bulk').value = '';
+};
+$('exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `vamos-vocab-${dayStr()}.json`; a.click();
+};
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').onchange = async e => {
+  try {
+    const d = JSON.parse(await e.target.files[0].text());
+    if (!Array.isArray(d.words)) throw 0;
+    state = migrate({ ...state, ...d }); save(); refreshAll(); toast('¡Restaurado!');
+  } catch (_) { toast('That file did not work'); }
+};
+
+// ---------- navigation ----------
+let view = 'flash';
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => go(b.dataset.view));
+function go(v) {
+  view = v;
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x.dataset.view === view));
+  document.querySelector('.toolbar').style.display = ['add', 'frases', 'lecciones'].includes(view) ? 'none' : 'flex';
+  if (view === 'add') renderList();
+  if (view === 'lecciones') renderLessons();
+  checkDone();
+  if (view === 'write') setTimeout(() => $('wInput').focus(), 50);
+  if (view === 'frases') setTimeout(() => $('sInput').focus(), 50);
+  window.scrollTo(0, 0);
+}
+
+function refreshAll() { renderCats(); renderList(); renderLessons(); updateStats(); nextFlash(); newMatch(); nextWrite(); }
+
+// ---------- siesta timer ----------
+// Counts only while the page is visible and you've interacted recently.
+let studied = 0, lastActive = Date.now(), nextSiesta = SIESTA_AFTER;
+['click', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => lastActive = Date.now(), { passive: true }));
+setInterval(() => {
+  if (document.hidden || Date.now() - lastActive > 60000) return;
+  studied++;
+  if (studied >= nextSiesta && !$('siesta').classList.contains('show')) {
+    $('siestaMin').textContent = Math.round(studied / 60);
+    $('siesta').classList.add('show');
+  }
+}, 1000);
+$('siestaMore').onclick = () => { $('siesta').classList.remove('show'); nextSiesta = studied + SNOOZE; toast('¡Vale! 5 more minutes'); };
+$('siestaYes').onclick = () => {
+  $('siesta').classList.remove('show'); studied = 0; nextSiesta = SIESTA_AFTER;
+  toast('¡Buenas siestas! 🌙'); confetti(10);
+};
+
+// ---------- init ----------
+const f = pick(FRASES);
+$('frase').innerHTML = `<b>${f[0]}</b> — ${f[1]}`;
+renderDir();
+if (state.myWordsVersion !== MY_WORDS_VERSION) {
+  addLines(MY_WORDS); state.myWordsVersion = MY_WORDS_VERSION; save();
+}
+// Coming back to the app later picks up any words that have become due
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshAll(); });
+if ('speechSynthesis' in window) speechSynthesis.getVoices();
+refreshAll();
+</script>
+</body>
+</html>
