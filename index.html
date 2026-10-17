@@ -1050,7 +1050,7 @@ function save() {
 // Fill these in from Supabase → Project Settings → API. The anon/publishable key is safe to publish:
 // row level security (supabase/setup.sql) only lets each account read and write its own row.
 const SUPABASE_URL = 'https://dwglwaanfljyuuzxwwjf.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR-SUPABASE-ANON-KEY';
+const SUPABASE_ANON_KEY = 'sb_publishable_VGjKTGun-nV--Jql0TNakg_iqCoIjQL';
 // Opened from a "choose your password" link? Read it before Supabase consumes the URL.
 const linkType = new URLSearchParams(location.hash.slice(1)).get('type');
 const sb = !SUPABASE_ANON_KEY.startsWith('YOUR') && window.supabase
