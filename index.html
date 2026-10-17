@@ -466,6 +466,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 
 <script>
+const $ = id => document.getElementById(id);
+
 // Your word list. One per line: español = english #Category
 // These get added to the app automatically (words you already have are skipped).
 // Bump MY_WORDS_VERSION after adding words here so the app picks them up.
@@ -1149,7 +1151,6 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 // ---------- helpers ----------
-const $ = id => document.getElementById(id);
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const pick = a => a[Math.random() * a.length | 0];
 const plain = s => s.toLowerCase().replace(/[’ʼ]/g, "'").replace(/[¿?¡!.,…]/g, '').replace(/\s+/g, ' ').trim();
