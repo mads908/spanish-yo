@@ -446,6 +446,7 @@
   <form class="panel" id="loginForm" autocomplete="on">
     <div style="font-size:52px">💃</div>
     <h2>¡Hola! Inicia sesión</h2>
+    <p class="muted" style="margin-top:0">First time? Just type the password you want to use.</p>
     <div class="field"><label for="lEmail">Email</label><input id="lEmail" type="email" autocomplete="username" autocapitalize="off" required></div>
     <div class="field"><label for="lPass">Password</label><input id="lPass" type="password" autocomplete="current-password" required></div>
     <p class="feedback bad" id="lErr" style="min-height:0"></p>
@@ -1133,9 +1134,21 @@ $('loginForm').onsubmit = async e => {
   e.preventDefault();
   $('lErr').textContent = '';
   $('lBtn').disabled = true;
-  const { data, error } = await sb.auth.signInWithPassword({ email: $('lEmail').value.trim(), password: $('lPass').value });
+  const email = $('lEmail').value.trim(), password = $('lPass').value;
+  let { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error && password.length >= 6) {
+    // First time this account logs in: the password you type becomes your password
+    const { data: claimed } = await sb.rpc('claim_account', { p_email: email, p_password: password });
+    if (claimed) {
+      ({ data, error } = await sb.auth.signInWithPassword({ email, password }));
+      if (!error) toast('🔐 Password saved — use it next time');
+    }
+  }
   $('lBtn').disabled = false;
-  if (error) { $('lErr').textContent = 'Wrong email or password'; return; }
+  if (error) {
+    $('lErr').textContent = password.length < 6 ? 'Passwords need at least 6 characters' : 'Wrong email or password';
+    return;
+  }
   signedIn(data.user);
 };
 $('logoutBtn').onclick = async () => {
