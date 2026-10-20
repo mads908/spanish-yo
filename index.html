@@ -1167,8 +1167,41 @@ document.addEventListener('visibilitychange', async () => {
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const pick = a => a[Math.random() * a.length | 0];
 const plain = s => s.toLowerCase().replace(/[’ʼ]/g, "'").replace(/[¿?¡!.,…]/g, '').replace(/\s+/g, ' ').trim();
-const norm = s => plain(s).normalize('NFD').replace(/[̀-ͯ]/g, '')
-  .replace(/^(the|a|an|to|el|la|los|las|un|una)\s+/, '').trim();
+// Contractions count the same as the long form: "it's" = "it is"
+const expand = s => s.replace(/\bcan't\b/g, 'cannot').replace(/\bwon't\b/g, 'will not')
+  .replace(/n't\b/g, ' not').replace(/'re\b/g, ' are').replace(/'m\b/g, ' am').replace(/'ll\b/g, ' will')
+  .replace(/'ve\b/g, ' have').replace(/'d\b/g, ' would').replace(/'s\b/g, ' is').replace(/'/g, '');
+// Compare answers without caring about a leading "the/to/el/la…"; accents are kept.
+// Both "it is" and "its" count for "it's", so answers are compared with contractions expanded and with apostrophes dropped.
+const answerKey = (s, longForm) => (longForm ? expand(plain(s)) : plain(s).replace(/'/g, '')).normalize('NFC')
+  .replace(/^(the|a|an|to|el|la|los|las|un|una)\s+/, '').replace(/\s+/g, ' ').trim();
+const stripAccents = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+const accentsOf = s => (s.match(/[áéíóúñü]/g) || []).join('');
+function editDistance(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++)
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+// 'exact' | 'typo' (a letter or two off, still counts) | 'accent' (accent wrong, doesn't count) | 'wrong'
+function grade(guess, answer) {
+  const short = gradeKeys(answerKey(guess, false), answerKey(answer, false));
+  const long = gradeKeys(answerKey(guess, true), answerKey(answer, true));
+  return ['exact', 'typo', 'accent'].find(r => r === short || r === long) || 'wrong';
+}
+function gradeKeys(g, a) {
+  if (g === a) return 'exact';
+  const len = a.replace(/ /g, '').length;
+  const allowed = len <= 3 ? 0 : len <= 12 ? 1 : len <= 25 ? 2 : 3;
+  if (editDistance(stripAccents(g), stripAccents(a)) > allowed) return 'wrong';
+  return accentsOf(g) === accentsOf(a) ? 'typo' : 'accent';
+}
+const bestGrade = (guess, answers) =>
+  ['exact', 'typo', 'accent'].find(r => answers.some(a => grade(guess, a) === r)) || 'wrong';
 // Every answer we accept for textbook notation like "el/la abuelo/a", "(Muy) bien, gracias." or "almorzar (o:ue)"
 function variants(target) {
   const out = new Set();
@@ -1435,15 +1468,15 @@ function checkWrite(giveUp) {
   // Words with the same prompt count too, e.g. "See you later." = Hasta luego / Hasta la vista
   const prompt = plain(wToEs ? wCur.en : wCur.es);
   const options = state.words.filter(w => plain(wToEs ? w.en : w.es) === prompt).flatMap(w => variants(wToEs ? w.es : w.en));
-  const exact = options.includes(plain(guess));
-  const close = !exact && options.some(o => norm(o) === norm(guess));
-  const ok = !giveUp && (exact || close);
+  const result = giveUp ? 'wrong' : bestGrade(guess, options);
+  const ok = result === 'exact' || result === 'typo';
   wTotal++; if (ok) wRight++;
   bump(wCur, ok); markStudied();
   $('wInput').className = 'answer ' + (ok ? 'ok' : 'bad');
   $('wFeedback').className = 'feedback ' + (ok ? 'ok' : 'bad');
-  if (exact) $('wFeedback').innerHTML = pick(PRAISE);
-  else if (close) $('wFeedback').innerHTML = `${pick(PRAISE)} <small>Watch the spelling/accents: <b>${esc(target)}</b></small>`;
+  if (result === 'exact') $('wFeedback').innerHTML = pick(PRAISE);
+  else if (result === 'typo') $('wFeedback').innerHTML = `${pick(PRAISE)} <small>Small typo — it's spelled <b>${esc(target)}</b></small>`;
+  else if (result === 'accent') $('wFeedback').innerHTML = `Casi… check the accents: <b>${esc(target)}</b>`;
   else $('wFeedback').innerHTML = `Casi… it's <b>${esc(target)}</b>`;
   speak(wCur.es);
   if (ok && wRight % 10 === 0) confetti();
@@ -1504,9 +1537,8 @@ function checkSentence(giveUp) {
   if (sDone) { nextSentence(); $('sInput').focus(); return; }
   const guess = $('sInput').value;
   if (!giveUp && !guess.trim()) return;
-  const exact = plain(guess) === plain(sCur[0]);
-  const close = !exact && norm(guess) === norm(sCur[0]);
-  const ok = !giveUp && (exact || close);
+  const result = giveUp ? 'wrong' : grade(guess, sCur[0]);
+  const ok = result === 'exact' || result === 'typo';
   // Underline the words in the right answer that you didn't write (accents count)
   const typed = new Set(plain(guess).split(' '));
   const marked = sCur[0].split(' ').map(t => typed.has(plain(t)) ? esc(t) : `<u>${esc(t)}</u>`).join(' ');
@@ -1514,8 +1546,9 @@ function checkSentence(giveUp) {
   $('sCheck').textContent = 'Next →';
   $('sInput').className = 'answer ' + (ok ? 'ok' : 'bad');
   $('sFeedback').className = 'feedback ' + (ok ? 'ok' : 'bad');
-  if (exact) $('sFeedback').innerHTML = pick(PRAISE);
-  else if (close) $('sFeedback').innerHTML = `${pick(PRAISE)} <small>Watch the accents: ${marked}</small>`;
+  if (result === 'exact') $('sFeedback').innerHTML = pick(PRAISE);
+  else if (result === 'typo') $('sFeedback').innerHTML = `${pick(PRAISE)} <small>Small typo: ${marked}</small>`;
+  else if (result === 'accent') $('sFeedback').innerHTML = `Casi… check the accents: ${marked}<small>Underlined = what to fix</small>`;
   else if (giveUp) $('sFeedback').innerHTML = `<b>${esc(sCur[0])}</b><small>Read it out loud, then try the next one</small>`;
   else $('sFeedback').innerHTML = `Casi… ${marked}<small>Underlined = what to fix</small>`;
   if (ok) { markStudied(); confetti(10); }
